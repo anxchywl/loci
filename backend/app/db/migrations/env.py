@@ -15,7 +15,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.sqlalchemy_database_url)
+escaped_url = settings.sqlalchemy_database_url.replace("%", "%%")
+config.set_main_option("sqlalchemy.url", escaped_url)
 
 target_metadata = Base.metadata
 
