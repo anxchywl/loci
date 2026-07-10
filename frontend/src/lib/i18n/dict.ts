@@ -71,6 +71,7 @@ interface Dict {
   addFirstStory: string;
   exploreMap: string;
   openInTelegram: string;
+  locateMe: string;
   categories: Record<CategorySlug, string>;
 }
 
@@ -128,6 +129,7 @@ export const dict: Record<Locale, Dict> = {
     addFirstStory: "Add your first story",
     exploreMap: "Explore the map",
     openInTelegram: "Open in Telegram to sign in",
+    locateMe: "Find my location",
     categories: {
       love: "Love",
       happy_moments: "Happy Moments",
@@ -196,6 +198,7 @@ export const dict: Record<Locale, Dict> = {
     addFirstStory: "Алғашқы оқиғаңызды қосыңыз",
     exploreMap: "Картаны шолу",
     openInTelegram: "Кіру үшін Telegram-да ашыңыз",
+    locateMe: "Орналасқан жерімді табу",
     categories: {
       love: "Махаббат",
       happy_moments: "Бақытты сәттер",
@@ -264,6 +267,7 @@ export const dict: Record<Locale, Dict> = {
     addFirstStory: "Добавьте первую историю",
     exploreMap: "Смотреть карту",
     openInTelegram: "Откройте в Telegram, чтобы войти",
+    locateMe: "Где я?",
     categories: {
       love: "Любовь",
       happy_moments: "Счастливые моменты",

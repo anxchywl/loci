@@ -20,6 +20,7 @@ export function AddStorySheet() {
   const finishCompose = useUiStore((state) => state.finishCompose);
   const openStory = useUiStore((state) => state.openStory);
   const showToast = useUiStore((state) => state.showToast);
+  const requestPanTo = useUiStore((state) => state.requestPanTo);
 
   const { data: categories } = useCategories();
   const createStory = useCreateStory();
@@ -81,6 +82,7 @@ export function AddStorySheet() {
         onSuccess: (story) => {
           reset();
           finishCompose();
+          requestPanTo(pickedLocation.lat, pickedLocation.lon, 14);
           openStory(story.id);
         },
         onError: () => showToast(t.errorGeneric),

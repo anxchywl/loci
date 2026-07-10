@@ -97,5 +97,17 @@ export function MapView({ categories, stories, onBoundsChange }: MapViewProps) {
     }
   }, [mode, pickedLocation]);
 
+  const panRequest = useUiStore((state) => state.panRequest);
+
+  useEffect(() => {
+    if (mapRef.current && readyRef.current && panRequest) {
+      mapRef.current.easeTo({
+        center: [panRequest.lon, panRequest.lat],
+        zoom: panRequest.zoom ?? mapRef.current.getZoom(),
+        duration: 500,
+      });
+    }
+  }, [panRequest]);
+
   return <div ref={containerRef} className="absolute inset-0" data-testid="map" />;
 }

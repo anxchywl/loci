@@ -12,6 +12,7 @@ interface UiState {
   trendingOpen: boolean;
   categoryFilter: number | null;
   toast: string | null;
+  panRequest: { lat: number; lon: number; zoom?: number; id: number } | null;
   setLocale: (locale: Locale) => void;
   startPickLocation: () => void;
   pickLocation: (lat: number, lon: number) => void;
@@ -23,6 +24,7 @@ interface UiState {
   setCategoryFilter: (id: number | null) => void;
   showToast: (message: string) => void;
   clearToast: () => void;
+  requestPanTo: (lat: number, lon: number, zoom?: number) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -33,6 +35,7 @@ export const useUiStore = create<UiState>((set) => ({
   trendingOpen: false,
   categoryFilter: null,
   toast: null,
+  panRequest: null,
   setLocale: (locale) => set({ locale }),
   startPickLocation: () =>
     set({ mode: "pick-location", openStoryId: null, trendingOpen: false }),
@@ -45,4 +48,6 @@ export const useUiStore = create<UiState>((set) => ({
   setCategoryFilter: (id) => set({ categoryFilter: id }),
   showToast: (message) => set({ toast: message }),
   clearToast: () => set({ toast: null }),
+  requestPanTo: (lat, lon, zoom) =>
+    set({ panRequest: { lat, lon, zoom, id: Date.now() } }),
 }));

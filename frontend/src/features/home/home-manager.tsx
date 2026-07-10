@@ -1,6 +1,6 @@
 "use client";
 
-import { Flame, Plus, Search, UserRound, X } from "lucide-react";
+import { Flame, Navigation, Plus, Search, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -51,6 +51,7 @@ export function HomeManager() {
   const trendingOpen = useUiStore((state) => state.trendingOpen);
   const setTrendingOpen = useUiStore((state) => state.setTrendingOpen);
   const openStory = useUiStore((state) => state.openStory);
+  const requestPanTo = useUiStore((state) => state.requestPanTo);
 
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +64,22 @@ export function HomeManager() {
   const { data: searchResults } = useSearch(searchQuery);
 
   const searching = searchQuery.trim().length >= 2;
+
+  const locateMe = () => {
+    if (!navigator.geolocation) {
+      useUiStore.getState().showToast(t.errorGeneric);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        requestPanTo(position.coords.latitude, position.coords.longitude, 14);
+      },
+      () => {
+        useUiStore.getState().showToast(t.errorGeneric);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-bg">
@@ -123,6 +140,7 @@ export function HomeManager() {
                     onOpen={(id) => {
                       setSearchQuery("");
                       openStory(id);
+                      requestPanTo(story.lat, story.lon);
                     }}
                   />
                 ))}
@@ -163,6 +181,13 @@ export function HomeManager() {
               <Plus size={22} />
             </button>
           )}
+          <button
+            aria-label={t.locateMe}
+            onClick={locateMe}
+            className={`absolute right-4 rounded-full border border-border bg-bg p-3 text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95 ${authenticated ? "bottom-24" : "bottom-6"}`}
+          >
+            <Navigation size={20} />
+          </button>
         </>
       )}
 
@@ -182,7 +207,10 @@ export function HomeManager() {
             key={story.id}
             story={story}
             categories={categories}
-            onOpen={openStory}
+            onOpen={(id) => {
+              openStory(id);
+              requestPanTo(story.lat, story.lon);
+            }}
           />
         ))}
       </BottomSheet>
