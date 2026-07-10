@@ -164,14 +164,23 @@ export function HomeManager() {
 
       {mode === "browse" && (
         <>
-          <button
-            aria-label={t.trending}
-            onClick={() => setTrendingOpen(true)}
-            className="absolute bottom-6 left-4 flex items-center gap-1.5 rounded-full border border-border bg-bg px-4 py-2.5 text-[13px] font-medium"
-          >
-            <Flame size={15} />
-            {t.trending}
-          </button>
+          <div className="absolute bottom-6 left-4 flex items-center gap-2">
+            <button
+              aria-label={t.trending}
+              onClick={() => setTrendingOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-bg px-4 py-2.5 text-[13px] font-medium shadow-sm transition-transform duration-150 ease-lm active:scale-95"
+            >
+              <Flame size={15} />
+              {t.trending}
+            </button>
+            <button
+              aria-label={t.locateMe}
+              onClick={locateMe}
+              className="flex items-center justify-center rounded-full border border-border bg-bg p-3 text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95"
+            >
+              <Navigation size={18} />
+            </button>
+          </div>
           {authenticated && (
             <button
               aria-label={t.addStory}
@@ -181,14 +190,6 @@ export function HomeManager() {
               <Plus size={22} />
             </button>
           )}
-          <button
-            aria-label={t.locateMe}
-            onClick={locateMe}
-            style={{ bottom: authenticated ? '6rem' : '1.5rem' }}
-            className="absolute right-4 z-10 rounded-full border border-border bg-bg p-3 text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95"
-          >
-            <Navigation size={20} />
-          </button>
         </>
       )}
 

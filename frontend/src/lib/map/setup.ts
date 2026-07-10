@@ -24,16 +24,14 @@ export function createMap(container: HTMLElement): MapLibreMap {
   });
 }
 
-function rasterizeSvg(svg: string, size: number): Promise<ImageBitmap> {
-  const blob = new Blob([svg], { type: "image/svg+xml" });
+function rasterizeSvg(svg: string, size: number): Promise<HTMLImageElement> {
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   return new Promise((resolve, reject) => {
     const image = new Image(size, size);
     image.onload = () => {
       URL.revokeObjectURL(url);
-      createImageBitmap(image, { resizeWidth: size, resizeHeight: size })
-        .then(resolve)
-        .catch(reject);
+      resolve(image);
     };
     image.onerror = reject;
     image.src = url;
