@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import quote
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -76,8 +77,10 @@ class Settings(BaseSettings):
     def sqlalchemy_database_url(self) -> str:
         if self.database_url:
             return self.database_url
+        user = quote(self.postgres_user, safe="")
+        password = quote(self.postgres_password, safe="")
         return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+asyncpg://{user}:{password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
@@ -86,7 +89,8 @@ class Settings(BaseSettings):
     def redis_dsn(self) -> str:
         if self.redis_url:
             return self.redis_url
-        auth = f":{self.redis_password}@" if self.redis_password else ""
+        password = quote(self.redis_password, safe="") if self.redis_password else ""
+        auth = f":{password}@" if password else ""
         return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
 
