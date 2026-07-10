@@ -1,0 +1,42 @@
+name: server-setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix directory structure and restore .env
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+
+            # Move the git clone from /home/deploy/loci/ to /home/deploy/loci/repo/
+            if [ -d /home/deploy/loci/.git ] && [ ! -d /home/deploy/loci/repo/.git ]; then
+              echo "Moving git clone to repo/ subdirectory..."
+              tmp=$(mktemp -d)
+              cp -r /home/deploy/loci/. "$tmp/"
+              rm -rf /home/deploy/loci
+              mkdir -p /home/deploy/loci
+              mv "$tmp" /home/deploy/loci/repo
+              echo "Done"
+            else
+              echo "Directory structure already correct"
+            fi
+
+            # Restore .env from running container env vars
+            echo "Restoring .env from loci-api-1 container..."
+            docker inspect loci-api-1 \
+              --format '{{range .Config.Env}}{{println .}}{{end}}' \
+              | grep -v '^PATH=\|^LANG=\|^GPG_KEY=\|^PYTHON' \
+              > /home/deploy/loci/repo/.env
+            echo "BACKUP_DIR=/home/deploy/loci/backups" >> /home/deploy/loci/repo/.env
+            lines=$(wc -l < /home/deploy/loci/repo/.env)
+            echo ".env restored with $lines lines"
+
+            ls /home/deploy/loci/repo/
