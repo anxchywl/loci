@@ -1,0 +1,99 @@
+from datetime import timedelta
+from io import BytesIO
+from urllib.parse import urlparse
+
+from minio import Minio
+from minio.error import S3Error
+
+from app.core.config import get_settings
+
+_client: Minio | None = None
+_signing_client: Minio | None = None
+
+
+def get_client() -> Minio:
+    global _client
+    if _client is None:
+        settings = get_settings()
+        _client = Minio(
+            endpoint=settings.s3_endpoint,
+            access_key=settings.s3_access_key,
+            secret_key=settings.s3_secret_key,
+            secure=settings.s3_secure,
+        )
+    return _client
+
+
+def _get_signing_client() -> Minio:
+    # urls must be signed for the endpoint the browser reaches, not the internal one
+    global _signing_client
+    if _signing_client is None:
+        settings = get_settings()
+        public_endpoint = urlparse(settings.s3_public_endpoint)
+        _signing_client = Minio(
+            endpoint=public_endpoint.netloc,
+            access_key=settings.s3_access_key,
+            secret_key=settings.s3_secret_key,
+            secure=public_endpoint.scheme == "https",
+            region="us-east-1",
+        )
+    return _signing_client
+
+
+def ensure_bucket(bucket: str) -> None:
+    client = get_client()
+    if not client.bucket_exists(bucket):
+        client.make_bucket(bucket)
+
+
+def presigned_put_url(object_key: str, expires_seconds: int) -> str:
+    settings = get_settings()
+    ensure_bucket(settings.s3_media_bucket)
+    return _get_signing_client().presigned_put_object(
+        bucket_name=settings.s3_media_bucket,
+        object_name=object_key,
+        expires=timedelta(seconds=expires_seconds),
+    )
+
+
+def presigned_get_url(object_key: str, expires_seconds: int) -> str:
+    return _get_signing_client().presigned_get_object(
+        bucket_name=get_settings().s3_media_bucket,
+        object_name=object_key,
+        expires=timedelta(seconds=expires_seconds),
+    )
+
+
+def get_object_bytes(object_key: str) -> bytes:
+    response = get_client().get_object(get_settings().s3_media_bucket, object_key)
+    try:
+        return response.read()
+    finally:
+        response.close()
+        response.release_conn()
+
+
+def get_object_size(object_key: str) -> int | None:
+    try:
+        stat = get_client().stat_object(get_settings().s3_media_bucket, object_key)
+    except S3Error as error:
+        if error.code in {"NoSuchKey", "NoSuchObject"}:
+            return None
+        raise
+    return stat.size
+
+
+def put_object_bytes(object_key: str, content: bytes, content_type: str) -> None:
+    settings = get_settings()
+    ensure_bucket(settings.s3_media_bucket)
+    get_client().put_object(
+        bucket_name=settings.s3_media_bucket,
+        object_name=object_key,
+        data=BytesIO(content),
+        length=len(content),
+        content_type=content_type,
+    )
+
+
+def delete_object(object_key: str) -> None:
+    get_client().remove_object(get_settings().s3_media_bucket, object_key)

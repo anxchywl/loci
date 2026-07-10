@@ -1,0 +1,96 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          enable-cache: true
+          working-directory: backend
+      - name: Start test dependencies
+        run: |
+          cp .env.example .env
+          docker compose -f docker/docker-compose.yml up -d --wait postgres redis minio
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen --extra dev
+      - name: Lint backend
+        working-directory: backend
+        run: uv run --frozen ruff check .
+      - name: Test backend
+        working-directory: backend
+        run: uv run --frozen pytest
+      - name: Show dependency logs on failure
+        if: failure()
+        run: docker compose -f docker/docker-compose.yml logs postgres redis minio
+      - name: Stop test dependencies
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+
+  containers:
+    needs:
+      - backend
+      - frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TELEGRAM_BOT_TOKEN: 123456:ci-token
+      JWT_SECRET_KEY: ci-jwt-secret-not-for-production
+      LOCATION_FUZZ_SECRET: ci-fuzz-secret-not-for-production
+      POSTGRES_PASSWORD: ci-postgres-password
+      REDIS_PASSWORD: ci-redis-password
+      S3_ENDPOINT: r2.example.invalid
+      S3_PUBLIC_ENDPOINT: https://r2.example.invalid
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
+      ALLOWED_ORIGINS: '["https://example.invalid"]'
+      CADDY_DOMAIN: example.invalid
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Compose files
+        run: |
+          docker compose -f docker/docker-compose.yml config -q
+          docker compose -f docker/docker-compose.prod.yml config -q
+      - name: Build production images
+        run: docker compose -f docker/docker-compose.prod.yml build api web backup
+

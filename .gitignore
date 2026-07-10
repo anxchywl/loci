@@ -1,0 +1,29 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# os / editor
+.DS_Store
+.claude/
+.idea/
+.vscode/
+
+# data
+backups/

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --lm-bg: var(--tg-theme-bg-color, #ffffff);
+  --lm-surface: var(--tg-theme-secondary-bg-color, #f4f4f5);
+  --lm-text: var(--tg-theme-text-color, #18181b);
+  --lm-muted: var(--tg-theme-hint-color, #71717a);
+  --lm-accent: var(--tg-theme-button-color, #3390ec);
+  --lm-accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --lm-border: color-mix(in srgb, var(--lm-text) 12%, transparent);
+}
+
+/* browser-only dark fallback; telegram theme params take over once data-tg is set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tg]) {
+    --lm-bg: #1c1c1e;
+    --lm-surface: #2c2c2e;
+    --lm-text: #f2f2f7;
+    --lm-muted: #8e8e93;
+  }
+}
+
+body {
+  background: var(--lm-bg);
+  color: var(--lm-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}

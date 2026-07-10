@@ -1,0 +1,155 @@
+name: loci
+
+x-backend-env: &backend-env
+  APP_ENV: ${APP_ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_MINI_APP_URL: ${TELEGRAM_MINI_APP_URL:-}
+  TELEGRAM_INIT_DATA_MAX_AGE_SECONDS: ${TELEGRAM_INIT_DATA_MAX_AGE_SECONDS:-300}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+  REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+  AUTH_REQUESTS_PER_MINUTE: ${AUTH_REQUESTS_PER_MINUTE:-10}
+  LOCATION_FUZZ_SECRET: ${LOCATION_FUZZ_SECRET:-change-me-fuzz}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: ${POSTGRES_DB:-loci}
+  POSTGRES_USER: ${POSTGRES_USER:-loci}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loci}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: ${REDIS_DB:-0}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-loci-redis}
+  S3_ENDPOINT: minio:9000
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-loci}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-loci-password}
+  S3_SECURE: ${S3_SECURE:-false}
+  S3_MEDIA_BUCKET: ${S3_MEDIA_BUCKET:-loci-media}
+  S3_PRESIGNED_URL_EXPIRES_SECONDS: ${S3_PRESIGNED_URL_EXPIRES_SECONDS:-600}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["http://localhost:3000"]}
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: loci-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-loci}
+      POSTGRES_USER: ${POSTGRES_USER:-loci}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loci}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loci} -d ${POSTGRES_DB:-loci}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - loci-data
+
+  redis:
+    image: redis:7-alpine
+    container_name: loci-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-loci-redis}
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-loci-redis} ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - loci-data
+
+  minio:
+    image: minio/minio:latest
+    container_name: loci-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-loci}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-loci-password}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - loci-data
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: loci-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment: *backend-env
+    volumes:
+      - ../backend/app:/app/app
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - loci-app
+      - loci-data
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: loci-worker
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2
+    environment: *backend-env
+    volumes:
+      - ../backend/app:/app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - loci-data
+
+  web:
+    image: node:22-alpine
+    container_name: loci-web
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-}
+    volumes:
+      - ../frontend:/app
+      - web-node-modules:/app/node_modules
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+    networks:
+      - loci-app
+
+volumes:
+  postgres-data:
+  minio-data:
+  web-node-modules:
+
+networks:
+  loci-app:
+  loci-data:

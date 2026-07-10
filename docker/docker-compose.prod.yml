@@ -1,0 +1,237 @@
+name: loci
+
+x-backend-env: &backend-env
+  APP_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN must be set}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_MINI_APP_URL: ${TELEGRAM_MINI_APP_URL:-}
+  TELEGRAM_INIT_DATA_MAX_AGE_SECONDS: ${TELEGRAM_INIT_DATA_MAX_AGE_SECONDS:-300}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+  REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+  AUTH_REQUESTS_PER_MINUTE: ${AUTH_REQUESTS_PER_MINUTE:-10}
+  LOCATION_FUZZ_SECRET: ${LOCATION_FUZZ_SECRET:?LOCATION_FUZZ_SECRET must be set}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: ${POSTGRES_DB:-loci}
+  POSTGRES_USER: ${POSTGRES_USER:-loci}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: ${REDIS_DB:-0}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+  S3_ENDPOINT: ${S3_ENDPOINT:?S3_ENDPOINT must be set}
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?S3_PUBLIC_ENDPOINT must be set}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:?S3_ACCESS_KEY must be set}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY must be set}
+  S3_SECURE: ${S3_SECURE:-true}
+  S3_MEDIA_BUCKET: ${S3_MEDIA_BUCKET:-loci-media}
+  S3_PRESIGNED_URL_EXPIRES_SECONDS: ${S3_PRESIGNED_URL_EXPIRES_SECONDS:-600}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS must be set}
+  ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS:-}
+  TRUST_PROXY_HEADERS: "true"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:?CADDY_DOMAIN must be set}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - loci-app
+
+  web:
+    image: ghcr.io/${REGISTRY_OWNER:-anxchywl}/loci-web:latest
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+        NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-}
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /app/.next/cache:uid=10001,gid=10001
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 256
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - loci-app
+
+  api:
+    image: ghcr.io/${REGISTRY_OWNER:-anxchywl}/loci-api:latest
+    build:
+      context: ..
+      dockerfile: docker/backend.production.Dockerfile
+    init: true
+    environment:
+      <<: *backend-env
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 256
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - loci-app
+      - loci-data
+
+  worker:
+    image: ghcr.io/${REGISTRY_OWNER:-anxchywl}/loci-api:latest
+    build:
+      context: ..
+      dockerfile: docker/backend.production.Dockerfile
+    init: true
+    command: celery -A app.workers.celery_app worker --loglevel=INFO --concurrency=2
+    environment: *backend-env
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 256
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - loci-data
+
+  bot:
+    image: ghcr.io/${REGISTRY_OWNER:-anxchywl}/loci-api:latest
+    build:
+      context: ..
+      dockerfile: docker/backend.production.Dockerfile
+    init: true
+    command: python -m app.workers.bot
+    environment: *backend-env
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    pids_limit: 128
+    networks:
+      - loci-data
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-loci}
+      POSTGRES_USER: ${POSTGRES_USER:-loci}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loci} -d ${POSTGRES_DB:-loci}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - loci-data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - loci-data
+
+  backup:
+    build:
+      context: ..
+      dockerfile: docker/backup.Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-loci}
+      POSTGRES_USER: ${POSTGRES_USER:-loci}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ${BACKUP_DIR:-/opt/loci/backups}:/backups
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loci-data
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  loci-app:
+  loci-data:
