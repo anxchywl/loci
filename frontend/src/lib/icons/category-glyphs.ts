@@ -49,10 +49,14 @@ const glyphNames: Record<CategorySlug, keyof typeof lucideIconData> = {
   urban_legends: "Ghost",
 };
 
-type IconNode = readonly (readonly [string, Record<string, string | number>])[];
+type IconAttrs = Record<string, string | number>;
+type IconChild = readonly [string, IconAttrs];
+// lucide exports each icon as the full element tuple, children at index 2 —
+// not as a bare list of children
+type IconNode = readonly [string, IconAttrs, readonly IconChild[]];
 
-function nodeToSvgBody(node: IconNode): string {
-  return node
+function nodeToSvgBody(children: readonly IconChild[]): string {
+  return children
     .map(([tag, attrs]) => {
       const rendered = Object.entries(attrs)
         .map(([key, value]) => `${key}="${value}"`)
@@ -64,10 +68,11 @@ function nodeToSvgBody(node: IconNode): string {
 
 export function categoryGlyphSvg(slug: CategorySlug, color = "#ffffff"): string {
   const node = lucideIconData[glyphNames[slug]] as unknown as IconNode;
+  const children = node[2] ?? [];
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ` +
     `stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-    nodeToSvgBody(node) +
+    nodeToSvgBody(children) +
     `</svg>`
   );
 }

@@ -33,7 +33,7 @@ function Toast() {
 
   if (!toast) return null;
   return (
-    <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded bg-text px-4 py-2 text-[13px] font-medium text-bg">
+    <div className="fixed bottom-24 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 break-words rounded bg-text px-4 py-2 text-center text-[13px] font-medium text-bg">
       {toast}
     </div>
   );

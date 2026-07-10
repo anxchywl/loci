@@ -103,7 +103,9 @@ export function MapView({ categories, stories, onBoundsChange }: MapViewProps) {
   const panRequest = useUiStore((state) => state.panRequest);
 
   useEffect(() => {
-    if (mapRef.current && readyRef.current && panRequest) {
+    // camera moves are independent of the glyph/layer pipeline, so this must not
+    // wait on readyRef — a marker setup failure should never freeze the map
+    if (mapRef.current && panRequest) {
       mapRef.current.easeTo({
         center: [panRequest.lon, panRequest.lat],
         zoom: panRequest.zoom ?? mapRef.current.getZoom(),
