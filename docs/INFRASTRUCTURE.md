@@ -45,43 +45,8 @@ injects everything; the backend reads them via `pydantic-settings`
 
 ## Local development
 
-```sh
-cp .env.example .env
-docker compose -f docker/docker-compose.yml up --build
-```
-
-API http://localhost:8000 · Web http://localhost:3000 · MinIO console
-http://localhost:9001. Postgres is reachable on host port 5433 for tooling.
-
-Backend without docker:
-
-```sh
-cd backend
-uv sync --extra dev
-uv run uvicorn app.main:app --reload
-uv run pytest
-```
-
-Frontend without docker:
-
-```sh
-cd frontend
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1" > .env.local
-npm install
-npm run dev        # http://localhost:3000
-npm run typecheck && npm run lint && npm test
-```
-
-Bot without docker (needs a real bot token in the environment):
-
-```sh
-cd backend && uv run python -m app.workers.bot
-```
-
-To exercise the Mini App in a plain browser, pass Telegram launch params in
-the URL fragment (`#tgWebAppData=<signed initData>&tgWebAppThemeParams=…`);
-the backend validates the HMAC, so sign the payload with the same
-`TELEGRAM_BOT_TOKEN` the API runs with.
+Use the quickstart in [README.md](../README.md). This file keeps deployment,
+environment, backup, and recovery details.
 
 ## Production runbook
 
@@ -202,6 +167,14 @@ public health check and a private/anonymous-story privacy smoke test afterward.
 This Compose deployment briefly restarts application containers and is not
 zero-downtime. The database and Redis remain up during normal deploys. Add a
 multi-host/orchestrated rollout only when availability requirements justify it.
+
+### Shared edge proxy
+
+If the host already has a Caddy container bound to ports 80/443, do not start a
+second public Caddy. Attach the existing Caddy container to Loci's app network
+and add a site block for `CADDY_DOMAIN` that routes `/api/*` and `/health` to
+`loci-api-1:8000`, and all other paths to `loci-web-1:3000`. Validate and reload
+the existing Caddy config before considering the deploy complete.
 
 ## Continuous integration
 
