@@ -18,6 +18,7 @@ import {
 } from "@/features/stories/hooks";
 import { StorySheet } from "@/features/stories/story-sheet";
 import { useDict } from "@/lib/i18n/use-dict";
+import { locate } from "@/lib/telegram/location";
 import { useUiStore } from "@/stores/ui-store";
 
 function Toast() {
@@ -65,44 +66,23 @@ export function HomeManager() {
 
   const searching = searchQuery.trim().length >= 2;
 
-  const locateMe = () => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg?.LocationManager) {
-      const lm = tg.LocationManager;
-      const fetchLocation = () => {
-        lm.getLocation((data: any) => {
-          if (data && data.latitude !== undefined) {
-            requestPanTo(data.latitude, data.longitude, 14);
-          } else {
-            useUiStore.getState().showToast(t.errorLocationDenied);
-          }
-        });
-      };
+  const [locating, setLocating] = useState(false);
 
-      if (!lm.isInited) {
-        lm.init(() => fetchLocation());
-      } else {
-        fetchLocation();
+  const locateMe = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      const outcome = await locate();
+      if (outcome.kind === "located") {
+        requestPanTo(outcome.lat, outcome.lon, 14);
+      } else if (outcome.kind === "denied") {
+        useUiStore.getState().showToast(t.errorLocationDenied);
+      } else if (outcome.kind === "unsupported") {
+        useUiStore.getState().showToast(t.errorGeneric);
       }
-      return;
+    } finally {
+      setLocating(false);
     }
-
-    if (!navigator.geolocation) {
-      useUiStore.getState().showToast(t.errorGeneric);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        requestPanTo(position.coords.latitude, position.coords.longitude, 14);
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        useUiStore.getState().showToast(
-          error.code === error.PERMISSION_DENIED ? t.errorLocationDenied : t.errorGeneric
-        );
-      },
-      { enableHighAccuracy: true }
-    );
   };
 
   return (
@@ -208,10 +188,11 @@ export function HomeManager() {
           <button
             aria-label={t.locateMe}
             onClick={locateMe}
+            disabled={locating}
             style={{ bottom: authenticated ? '5.5rem' : '1.5rem' }}
-            className="absolute right-4 z-10 flex items-center justify-center rounded-full border border-border bg-bg p-3 text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95"
+            className="absolute right-4 z-10 flex items-center justify-center rounded-full border border-border bg-bg p-3 text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95 disabled:opacity-50"
           >
-            <Navigation size={20} />
+            <Navigation size={20} className={locating ? "animate-pulse" : undefined} />
           </button>
         </>
       )}
