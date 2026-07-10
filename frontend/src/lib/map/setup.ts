@@ -20,7 +20,7 @@ export function createMap(container: HTMLElement): MapLibreMap {
     style: MAP_STYLE_URL,
     center: DEFAULT_CENTER,
     zoom: DEFAULT_ZOOM,
-    attributionControl: { compact: true },
+    attributionControl: false,
   });
 }
 
