@@ -406,24 +406,22 @@ export function HomeManager() {
         >
           {!mobilePanel && (
             <div className="space-y-0.5 px-1 pb-1 animate-fade-in">
-              <div className="-mx-3 -mt-4 mb-1">
+              <div className="-mx-3 -mt-2 mb-2">
                 <ProfilePanel onSettingsClick={() => setMobilePanel("settings")} />
               </div>
               <div className="mx-2 mb-2 h-px bg-border" />
-              <div className="flex gap-2 px-1">
-                {mobileMenuItems.map((item) => (
-                  <button
-                    key={item.panel}
-                    onClick={() => openMobilePanel(item.panel)}
-                    className="group flex flex-1 flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3 transition-all duration-150 ease-lm hover:bg-surface active:scale-[0.98] active:bg-surface"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-muted transition-colors group-hover:bg-bg group-hover:text-accent">
-                      {item.icon}
-                    </span>
-                    <span className="text-[13px] font-medium text-text">{item.label}</span>
-                  </button>
-                ))}
-              </div>
+              {mobileMenuItems.map((item) => (
+                <button
+                  key={item.panel}
+                  onClick={() => openMobilePanel(item.panel)}
+                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium text-text transition-all duration-150 ease-lm hover:bg-surface active:scale-[0.98] active:bg-surface"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted transition-colors group-hover:bg-bg group-hover:text-accent">
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">{item.label}</span>
+                </button>
+              ))}
             </div>
           )}
 
