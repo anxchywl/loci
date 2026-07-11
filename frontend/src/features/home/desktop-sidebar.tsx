@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTelegramAuth } from "@/features/auth/hooks";
 import { ReactionButton } from "@/features/stories/components/reaction-button";
 import { StoryListItem } from "@/features/stories/components/story-list-item";
+import { MyStoriesPanel, SavedPanel } from "@/features/profile/story-panels";
 import {
   useBookmark,
   useCategories,
@@ -509,10 +510,16 @@ export function DesktopSidebar({
                 <NearbyPanel location={nearbyLocation} authenticated={authenticated} onOpen={handleStoryOpen} />
               )}
               {activePanel === "saved" && (
-                <div className="flex flex-1 items-center justify-center py-12 text-[13px] text-muted">{t.savedStories}</div>
+                <SavedPanel
+                  authenticated={authenticated}
+                  onOpen={(story) => handleStoryOpen(story.id, story.lat, story.lon)}
+                />
               )}
               {activePanel === "my-stories" && (
-                <div className="flex flex-1 items-center justify-center py-12 text-[13px] text-muted">{t.myStories}</div>
+                <MyStoriesPanel
+                  authenticated={authenticated}
+                  onOpen={(story) => handleStoryOpen(story.id, story.lat, story.lon)}
+                />
               )}
               {activePanel === "profile" && <ProfilePanel />}
               {activePanel === "about" && <AboutPanel />}

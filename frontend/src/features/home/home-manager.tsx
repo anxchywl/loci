@@ -32,6 +32,7 @@ import { AddStorySheet } from "@/features/stories/add-story-sheet";
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
 import { CategoryChip } from "@/features/stories/components/category-chip";
 import { StoryListItem } from "@/features/stories/components/story-list-item";
+import { MyStoriesPanel, SavedPanel } from "@/features/profile/story-panels";
 import {
   useBboxStories,
   useCategories,
@@ -458,10 +459,16 @@ export function HomeManager() {
               )}
 
               {mobilePanel === "saved" && (
-                <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted animate-fade-in">{t.noSavedYet}</div>
+                <SavedPanel
+                  authenticated={authenticated}
+                  onOpen={(story) => { closeMobileMenu(); openStory(story.id); requestPanTo(story.lat, story.lon); }}
+                />
               )}
               {mobilePanel === "my-stories" && (
-                <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted animate-fade-in">{t.noStoriesYet}</div>
+                <MyStoriesPanel
+                  authenticated={authenticated}
+                  onOpen={(story) => { closeMobileMenu(); openStory(story.id); requestPanTo(story.lat, story.lon); }}
+                />
               )}
               {mobilePanel === "settings" && (
                 <div className="-mx-4 animate-fade-in">
