@@ -29,6 +29,16 @@ class StoryNotFound(HTTPException):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found")
 
 
+def _author_label(user) -> str:
+    # human-readable handle for admin notifications (admins may moderate anonymous
+    # stories, so the real author is intentionally shown to them here)
+    if user is None:
+        return "a user"
+    if user.username:
+        return f"@{user.username}"
+    return user.first_name or f"user #{user.id}"
+
+
 def _author_from_row(row) -> AuthorResponse | None:
     # anonymous stories must never expose the author id in any response path
     if row["is_anonymous"] or row["author_id"] is None:
@@ -61,6 +71,7 @@ def serialize_story(
         created_at=row["created_at"],
         moderation_status=row["moderation_status"],
         rejection_reason=row["rejection_reason"] if is_owner else None,
+        viewer_is_owner=is_owner,
         author=_author_from_row(row),
         reaction_count=row["reaction_count"],
         comment_count=row["comment_count"],
@@ -119,6 +130,9 @@ async def create_story(
         telegram_id=author.telegram_id if author else None,
         title=payload.title,
     )
+    notifications.dispatch_admins_pending_review(
+        settings, title=payload.title, author_label=_author_label(author)
+    )
     return serialize_story(row, viewer_id=author_id)
 
 
@@ -168,6 +182,9 @@ async def resubmit_story(
         event=notifications.StoryEvent.resubmitted,
         telegram_id=author.telegram_id if author else None,
         title=row["title"],
+    )
+    notifications.dispatch_admins_pending_review(
+        settings, title=row["title"], author_label=_author_label(author)
     )
     return serialize_story(row, await _photo_responses(db, story_id, settings), viewer_id=author_id)
 

@@ -192,6 +192,37 @@ async def test_bad_cursor_rejected(client):
     assert resp.status_code == 400
 
 
+async def test_submission_notifies_admins_without_emoji(client, monkeypatch):
+    from app.core.config import get_settings
+    from app.modules import notifications
+
+    sent: list[tuple[int, str]] = []
+    monkeypatch.setattr(get_settings(), "notifications_enabled", True)
+    monkeypatch.setattr(notifications, "_enqueue", lambda tid, text: sent.append((tid, text)))
+
+    await create_pending(client, telegram_id=1, title="Wow")
+
+    # the author is notified, and every admin gets a pending-review ping
+    author_msgs = [text for tid, text in sent if tid != ADMIN_TG]
+    admin_msgs = [text for tid, text in sent if tid == ADMIN_TG]
+    assert author_msgs and "pending review" in author_msgs[0].lower()
+    assert admin_msgs and "pending review" in admin_msgs[0].lower()
+    # no emoji anywhere in the outgoing text
+    assert all(ch.isascii() or ch in "“”—" for msg in sent for ch in msg[1])
+
+
+async def test_viewer_is_owner_flag(client):
+    story_id = await create_pending(client, telegram_id=1)
+    # owner sees the flag set on their own story
+    assert (await client.get(f"/api/v1/stories/{story_id}")).json()["viewer_is_owner"] is True
+
+    await authenticate(client, telegram_id=ADMIN_TG)
+    await client.post(f"/api/v1/admin/moderation/{story_id}/approve")
+    # a different viewer of the now-public story is not the owner
+    await authenticate(client, telegram_id=2)
+    assert (await client.get(f"/api/v1/stories/{story_id}")).json()["viewer_is_owner"] is False
+
+
 async def test_is_admin_flag_exposed(client):
     await authenticate(client, telegram_id=ADMIN_TG)
     assert (await client.get("/api/v1/profile/me")).json()["is_admin"] is True

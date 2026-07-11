@@ -1,8 +1,9 @@
 # Loci
 
-Loci is a Telegram Mini App for pinning meaningful life moments to real places
-on a shared world map. It is map-first, privacy-first, and built as a
-production-grade FastAPI + Next.js monorepo.
+Loci — the plural of the Latin locus, meaning “place” — is a Telegram Mini App
+for pinning meaningful life moments to real places on a shared world map. It is
+map-first, privacy-first, and built as a production-grade FastAPI + Next.js
+monorepo.
 
 The MVP supports map markers, categories, stories, photos, comments, reactions,
 bookmarks, reports, search, user profiles, and Telegram authentication.

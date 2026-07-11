@@ -40,6 +40,7 @@ export interface Story {
   created_at: string;
   moderation_status: ModerationStatus;
   rejection_reason: string | null;
+  viewer_is_owner: boolean;
   author: StoryAuthor | null;
   reaction_count: number;
   comment_count: number;

@@ -80,6 +80,9 @@ class StoryResponse(BaseModel):
     moderation_status: ModerationStatus
     # only ever populated for the owner's own view (My Stories); null for public reads
     rejection_reason: str | None = None
+    # true only when the authenticated viewer is this story's author — drives the
+    # owner-only edit/delete controls, and works even for anonymous stories
+    viewer_is_owner: bool = False
     author: AuthorResponse | None
     reaction_count: int
     comment_count: int

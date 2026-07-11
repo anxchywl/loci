@@ -9,6 +9,7 @@ import {
   Globe,
   Info,
   MapPin,
+  MapPinned,
   Menu,
   Moon,
   Navigation,
@@ -259,7 +260,7 @@ export function SettingsPanel() {
           {locales.map((l) => (
             <button key={l} onClick={() => handleLocale(l)}
               className={[
-                "flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-colors",
+                "min-w-0 flex-1 rounded-lg px-1 py-1.5 text-center text-[12px] font-medium leading-tight transition-colors",
                 locale === l
                   ? "bg-accent text-accent-text"
                   : "bg-surface text-text hover:bg-border",
@@ -278,12 +279,12 @@ export function SettingsPanel() {
           {themes.map(({ value, label, icon }) => (
             <button key={value} onClick={() => handleTheme(value)}
               className={[
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[13px] font-medium transition-colors",
+                "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-center text-[12px] font-medium leading-tight transition-colors",
                 theme === value
                   ? "bg-accent text-accent-text"
                   : "bg-surface text-text hover:bg-border",
               ].join(" ")}>
-              {icon} {label}
+              {icon} <span className="truncate">{label}</span>
             </button>
           ))}
         </div>
@@ -297,7 +298,7 @@ export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void
   const { user } = useTelegramAuth();
 
   return (
-    <div className="flex flex-col gap-5 px-4 py-2">
+    <div className="flex h-full flex-col gap-5 px-4 py-2">
       {user ? (
         <div className="flex items-center gap-3 rounded-2xl bg-surface p-3">
           {user.photo_url ? (
@@ -322,10 +323,15 @@ export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void
           )}
         </div>
       ) : (
-        <div className="py-4 text-center text-[13px] text-muted">{t.profile}</div>
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface px-3 py-6 text-center">
+          <MapPinned size={22} className="text-muted" />
+          <span className="text-[13px] text-muted">{t.openInTelegram}</span>
+        </div>
       )}
 
-      {!onSettingsClick && <SettingsPanel />}
+      {!onSettingsClick && <div className="mt-auto">
+        <SettingsPanel />
+      </div>}
     </div>
   );
 }

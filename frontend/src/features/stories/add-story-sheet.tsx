@@ -1,6 +1,6 @@
 "use client";
 
-import { ImagePlus, X } from "lucide-react";
+import { Check, ImagePlus, X } from "lucide-react";
 import { useState } from "react";
 
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
@@ -18,13 +18,13 @@ export function AddStorySheet() {
   const pickedLocation = useUiStore((state) => state.pickedLocation);
   const cancelCompose = useUiStore((state) => state.cancelCompose);
   const finishCompose = useUiStore((state) => state.finishCompose);
-  const openStory = useUiStore((state) => state.openStory);
   const showToast = useUiStore((state) => state.showToast);
   const requestPanTo = useUiStore((state) => state.requestPanTo);
 
   const { data: categories } = useCategories();
   const createStory = useCreateStory();
 
+  const [submitted, setSubmitted] = useState(false);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -48,6 +48,13 @@ export function AddStorySheet() {
   const close = () => {
     reset();
     cancelCompose();
+  };
+
+  // dismiss the post-submit confirmation and return to the map
+  const finish = () => {
+    setSubmitted(false);
+    reset();
+    finishCompose();
   };
 
   const addPhotos = (files: FileList | null) => {
@@ -79,16 +86,36 @@ export function AddStorySheet() {
         photos,
       },
       {
-        onSuccess: (story) => {
+        onSuccess: () => {
+          // the story is pending review, so instead of opening it we show a
+          // confirmation that it was sent for moderation
           reset();
-          finishCompose();
           requestPanTo(pickedLocation.lat, pickedLocation.lon, 14);
-          openStory(story.id);
+          setSubmitted(true);
         },
         onError: () => showToast(t.errorGeneric),
       },
     );
   };
+
+  if (submitted) {
+    return (
+      <BottomSheet open={mode === "compose"} onClose={finish} title={t.storySentTitle}>
+        <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/15">
+            <Check size={28} className="text-accent" />
+          </div>
+          <p className="text-[14px] leading-relaxed text-muted">{t.storySentBody}</p>
+          <button
+            onClick={finish}
+            className="w-full rounded bg-accent py-3 text-[15px] font-semibold text-accent-text transition-transform duration-150 ease-lm active:scale-[0.98]"
+          >
+            {t.gotIt}
+          </button>
+        </div>
+      </BottomSheet>
+    );
+  }
 
   return (
     <BottomSheet open={mode === "compose"} onClose={close} title={t.newStory}>

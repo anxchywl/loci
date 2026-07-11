@@ -20,15 +20,25 @@ class StoryEvent(str, enum.Enum):
 
 
 _MESSAGES = {
-    StoryEvent.submitted: "📝 Your story “{title}” was submitted and is pending review.",
-    StoryEvent.approved: "✅ Your story “{title}” was approved and is now on the map.",
-    StoryEvent.rejected: "🚫 Your story “{title}” was rejected.\n\nReason: {reason}",
-    StoryEvent.resubmitted: "🔁 Your story “{title}” was resubmitted and is pending review.",
+    StoryEvent.submitted: "Your story “{title}” was submitted and is pending review. It will appear on the map once our team approves it — please give us a little time.",
+    StoryEvent.approved: "Your story “{title}” was approved and is now on the map.",
+    StoryEvent.rejected: "Your story “{title}” was rejected.\n\nReason: {reason}",
+    StoryEvent.resubmitted: "Your story “{title}” was resubmitted and is pending review.",
 }
 
 
 def render_message(event: StoryEvent, title: str, reason: str | None) -> str:
     return _MESSAGES[event].format(title=title, reason=reason or "—")
+
+
+def _enqueue(telegram_id: int, text: str) -> None:
+    try:
+        # imported lazily so the API process never hard-depends on Celery wiring
+        from app.workers.celery_app import celery_app
+
+        celery_app.send_task("notifications.telegram", args=[telegram_id, text])
+    except Exception:  # pragma: no cover - broker failures must not break requests
+        logger.exception("failed to enqueue telegram notification for %s", telegram_id)
 
 
 def dispatch(
@@ -41,11 +51,19 @@ def dispatch(
 ) -> None:
     if not settings.notifications_enabled or not telegram_id:
         return
-    text = render_message(event, title, reason)
-    try:
-        # imported lazily so the API process never hard-depends on Celery wiring
-        from app.workers.celery_app import celery_app
+    _enqueue(telegram_id, render_message(event, title, reason))
 
-        celery_app.send_task("notifications.telegram", args=[telegram_id, text])
-    except Exception:  # pragma: no cover - broker failures must not break requests
-        logger.exception("failed to enqueue telegram notification for %s", telegram_id)
+
+def dispatch_admins_pending_review(
+    settings: Settings, *, title: str, author_label: str
+) -> None:
+    """Tell every configured admin that a story is waiting in the moderation
+    queue. Fire-and-forget, one message per admin telegram id."""
+    if not settings.notifications_enabled:
+        return
+    text = (
+        f"New story pending review: “{title}” by {author_label}. "
+        f"Open the moderation queue to approve or reject it."
+    )
+    for admin_id in settings.admin_ids:
+        _enqueue(admin_id, text)

@@ -86,14 +86,17 @@ describe("AddStorySheet", () => {
     );
   });
 
-  it("opens the created story and leaves compose mode after publishing", async () => {
+  it("shows the review confirmation after publishing, then leaves compose on dismiss", async () => {
     renderWithQuery(<AddStorySheet />);
     await fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
 
-    await waitFor(() => {
-      expect(useUiStore.getState().mode).toBe("browse");
-      expect(useUiStore.getState().openStoryId).toBe("story-1");
-    });
+    // pending stories aren't opened; the user sees a sent-for-review message
+    await screen.findByText(/sent your story to review/i);
+    expect(useUiStore.getState().mode).toBe("compose");
+    expect(useUiStore.getState().openStoryId).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Got it" }));
+    await waitFor(() => expect(useUiStore.getState().mode).toBe("browse"));
   });
 });

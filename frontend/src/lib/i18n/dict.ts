@@ -106,6 +106,15 @@ interface Dict {
   queueEmpty: string;
   loadMore: string;
   adminOnly: string;
+  storySentTitle: string;
+  storySentBody: string;
+  gotIt: string;
+  confirm: string;
+  deleting: string;
+  confirmDeleteTitle: string;
+  confirmDeleteBody: string;
+  confirmReportTitle: string;
+  confirmReportBody: string;
   categories: Record<CategorySlug, string>;
 }
 
@@ -198,6 +207,15 @@ export const dict: Record<Locale, Dict> = {
     queueEmpty: "Nothing to review",
     loadMore: "Load more",
     adminOnly: "You don't have access to moderation.",
+    storySentTitle: "Story sent for review",
+    storySentBody: "We've sent your story to review. It'll appear on the map once our team checks it — please give us a little time.",
+    gotIt: "Got it",
+    confirm: "Confirm",
+    deleting: "Deleting…",
+    confirmDeleteTitle: "Delete this story?",
+    confirmDeleteBody: "This permanently removes your story and all its comments and reactions for everyone. This can't be undone.",
+    confirmReportTitle: "Report this story?",
+    confirmReportBody: "Our team will review this story. Report it only if it breaks the rules.",
     categories: {
       love: "Love",
       happy_moments: "Happy Moments",
@@ -301,6 +319,15 @@ export const dict: Record<Locale, Dict> = {
     queueEmpty: "Тексеретін ештеңе жоқ",
     loadMore: "Тағы жүктеу",
     adminOnly: "Сізде модерацияға рұқсат жоқ.",
+    storySentTitle: "Оқиға тексеруге жіберілді",
+    storySentBody: "Оқиғаңызды тексеруге жібердік. Біздің команда тексергеннен кейін ол картада көрінеді — сәл уақыт беріңіз.",
+    gotIt: "Түсінікті",
+    confirm: "Растау",
+    deleting: "Жойылуда…",
+    confirmDeleteTitle: "Бұл оқиғаны жою керек пе?",
+    confirmDeleteBody: "Бұл оқиғаңызды және оның барлық пікірлері мен реакцияларын барлығы үшін біржола жояды. Мұны қайтару мүмкін емес.",
+    confirmReportTitle: "Бұл оқиғаға шағым жасау керек пе?",
+    confirmReportBody: "Біздің команда бұл оқиғаны қарайды. Тек ережені бұзса ғана шағым жасаңыз.",
     categories: {
       love: "Махаббат",
       happy_moments: "Бақытты сәттер",
@@ -404,6 +431,15 @@ export const dict: Record<Locale, Dict> = {
     queueEmpty: "Нечего проверять",
     loadMore: "Загрузить ещё",
     adminOnly: "У вас нет доступа к модерации.",
+    storySentTitle: "История отправлена на проверку",
+    storySentBody: "Мы отправили вашу историю на проверку. Она появится на карте после того, как наша команда её проверит — пожалуйста, подождите немного.",
+    gotIt: "Понятно",
+    confirm: "Подтвердить",
+    deleting: "Удаление…",
+    confirmDeleteTitle: "Удалить эту историю?",
+    confirmDeleteBody: "Это навсегда удалит вашу историю со всеми комментариями и реакциями для всех. Отменить нельзя.",
+    confirmReportTitle: "Пожаловаться на эту историю?",
+    confirmReportBody: "Наша команда проверит эту историю. Жалуйтесь только если она нарушает правила.",
     categories: {
       love: "Любовь",
       happy_moments: "Счастливые моменты",
