@@ -21,18 +21,20 @@ export function BottomSheet({ open, onClose, onBack, title, children }: BottomSh
         onClick={onClose}
       />
       <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-sheet bg-bg pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] motion-safe:animate-sheet-up transition-[height,transform] duration-200 ease-lm">
-        <div className="sticky top-0 z-10 flex flex-col items-center justify-center bg-bg px-4 pb-3 pt-3">
+        <div className="sticky top-0 z-10 flex flex-col items-center justify-center bg-bg pt-3">
           <div className="mb-3 h-1.5 w-12 shrink-0 rounded-full bg-border/80" />
-          {onBack && (
-            <button
-              aria-label="back"
-              onClick={onBack}
-              className="absolute left-4 top-3 flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:text-accent focus-visible:text-accent active:scale-95"
-            >
-              <ChevronLeft size={24} />
-            </button>
-          )}
-          {title && <div className="text-[17px] font-semibold text-center">{title}</div>}
+          <div className="relative flex w-full min-h-[32px] items-center justify-center pb-3">
+            {onBack && (
+              <button
+                aria-label="back"
+                onClick={onBack}
+                className="absolute left-2 flex h-8 w-8 items-center justify-center bg-transparent text-muted transition-colors hover:text-accent focus-visible:text-accent active:scale-95"
+              >
+                <ChevronLeft size={24} />
+              </button>
+            )}
+            {title && <div className="px-12 text-[17px] font-semibold text-center">{title}</div>}
+          </div>
         </div>
         <div className="px-4 pb-6">{children}</div>
       </div>

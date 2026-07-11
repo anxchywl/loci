@@ -390,7 +390,7 @@ export function HomeManager() {
           title={mobilePanel ? mobilePanelTitles[mobilePanel as Exclude<Panel, "story" | null>] : ""}
         >
           {!mobilePanel && (
-            <div className="space-y-0.5 px-1 pb-1">
+            <div className="space-y-0.5 px-1 pb-1 animate-fade-in">
               <div className="-mx-3 -mt-2 mb-2">
                 <ProfilePanel onSettingsClick={() => setMobilePanel("settings")} />
               </div>
@@ -414,7 +414,7 @@ export function HomeManager() {
           {mobilePanel && (
             <div>
               {mobilePanel === "trending" && (
-                <div className="px-1">
+                <div className="px-1 animate-fade-in">
                   {trendingStories?.length === 0 && (
                     <div className="flex flex-col items-center gap-2 py-8 text-center">
                       <Flame size={24} className="text-muted" />
@@ -429,7 +429,7 @@ export function HomeManager() {
               )}
 
               {mobilePanel === "nearby" && (
-                <div className="px-1">
+                <div className="px-1 animate-fade-in">
                   {!nearbyLocation && (
                     <div className="py-8 text-center text-[13px] text-muted">{t.loading}</div>
                   )}
@@ -444,13 +444,13 @@ export function HomeManager() {
               )}
 
               {mobilePanel === "saved" && (
-                <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted">{t.savedStories}</div>
+                <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted animate-fade-in">{t.noSavedYet}</div>
               )}
               {mobilePanel === "my-stories" && (
-                <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted">{t.myStories}</div>
+                <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted animate-fade-in">{t.noStoriesYet}</div>
               )}
               {mobilePanel === "settings" && (
-                <div className="-mx-4">
+                <div className="-mx-4 animate-fade-in">
                   <SettingsPanel />
                 </div>
               )}

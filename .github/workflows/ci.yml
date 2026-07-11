@@ -20,6 +20,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - name: Start test dependencies
+        run: |
+          cp .env.example .env
+          docker compose -f docker/docker-compose.yml pull -q postgres redis minio
+          docker compose -f docker/docker-compose.yml up -d postgres redis minio
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -27,16 +32,14 @@ jobs:
         with:
           enable-cache: true
           working-directory: backend
-      - name: Start test dependencies
-        run: |
-          cp .env.example .env
-          docker compose -f docker/docker-compose.yml up -d --wait postgres redis minio
       - name: Install backend dependencies
         working-directory: backend
         run: uv sync --frozen --extra dev
       - name: Lint backend
         working-directory: backend
         run: uv run --frozen ruff check .
+      - name: Wait for test dependencies
+        run: docker compose -f docker/docker-compose.yml up -d --wait postgres redis minio
       - name: Test backend
         working-directory: backend
         run: uv run --frozen pytest
@@ -60,6 +63,13 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
