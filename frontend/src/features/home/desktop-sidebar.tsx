@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useTelegramAuth } from "@/features/auth/hooks";
 import { ReactionButton } from "@/features/stories/components/reaction-button";
 import { StoryListItem } from "@/features/stories/components/story-list-item";
 import {
@@ -212,6 +213,7 @@ function StoryPanel({ storyId, authenticated }: { storyId: string; authenticated
 
 export function ProfilePanel() {
   const t = useDict();
+  const { user } = useTelegramAuth();
   const locale = useUiStore((s) => s.locale);
   const setLocale = useUiStore((s) => s.setLocale);
   const theme = useUiStore((s) => s.theme);
@@ -219,25 +221,41 @@ export function ProfilePanel() {
 
   const localeLabels: Record<Locale, string> = { en: "English", kk: "Қазақша", ru: "Русский" };
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: "auto", label: t.themeAuto, icon: <SunMoon size={15} /> },
-    { value: "light", label: t.themeLight, icon: <Sun size={15} /> },
-    { value: "dark", label: t.themeDark, icon: <Moon size={15} /> },
+    { value: "auto", label: t.themeAuto, icon: <SunMoon size={14} /> },
+    { value: "light", label: t.themeLight, icon: <Sun size={14} /> },
+    { value: "dark", label: t.themeDark, icon: <Moon size={14} /> },
   ];
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4">
-      <div className="py-6 text-center text-[13px] text-muted">{t.profile}</div>
+    <div className="flex flex-col gap-5 px-4 py-2">
+      {user ? (
+        <div className="flex items-center gap-3 rounded-2xl bg-surface p-3">
+          {user.photo_url ? (
+            <img src={user.photo_url} alt="" className="h-11 w-11 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-[17px] font-semibold text-accent-text">
+              {user.first_name?.[0]?.toUpperCase() ?? "U"}
+            </div>
+          )}
+          <div>
+            <div className="text-[15px] font-bold text-text">{user.first_name} {user.last_name}</div>
+            <div className="text-[13px] text-muted">{user.username ? `@${user.username}` : t.profile}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="py-4 text-center text-[13px] text-muted">{t.profile}</div>
+      )}
 
-      <div className="mt-auto space-y-5">
+      <div className="space-y-4">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-muted">
-            <Globe size={13} /> {t.languageLabel}
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <Globe size={12} /> {t.languageLabel}
           </div>
           <div className="flex gap-1.5">
             {locales.map((l) => (
               <button key={l} onClick={() => setLocale(l)}
                 className={[
-                  "flex-1 rounded-lg py-2 text-[13px] font-medium transition-colors",
+                  "flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-colors",
                   locale === l
                     ? "bg-accent text-accent-text"
                     : "bg-surface text-text hover:bg-border",
@@ -249,14 +267,14 @@ export function ProfilePanel() {
         </div>
 
         <div>
-          <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-muted">
-            <Settings size={13} /> {t.themeLabel}
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <Settings size={12} /> {t.themeLabel}
           </div>
           <div className="flex gap-1.5">
             {themes.map(({ value, label, icon }) => (
               <button key={value} onClick={() => setTheme(value)}
                 className={[
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[13px] font-medium transition-colors",
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[13px] font-medium transition-colors",
                   theme === value
                     ? "bg-accent text-accent-text"
                     : "bg-surface text-text hover:bg-border",
