@@ -31,8 +31,8 @@ class CategoryResponse(BaseModel):
 
 class StoryCreateRequest(BaseModel):
     category_id: int
-    title: str = Field(min_length=1, max_length=TITLE_MAX)
-    body: str = Field(min_length=1, max_length=BODY_MAX)
+    title: str = Field(min_length=1, max_length=TITLE_MAX, strip_whitespace=True)
+    body: str = Field(min_length=1, max_length=BODY_MAX, strip_whitespace=True)
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     location_precision: LocationPrecision
@@ -70,7 +70,7 @@ class StoryResponse(BaseModel):
 
 
 class CommentCreateRequest(BaseModel):
-    body: str = Field(min_length=1, max_length=COMMENT_MAX)
+    body: str = Field(min_length=1, max_length=COMMENT_MAX, strip_whitespace=True)
 
 
 class CommentResponse(BaseModel):

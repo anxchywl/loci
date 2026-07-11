@@ -1,13 +1,13 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db_session, get_optional_user, get_redis
 from app.core.config import Settings, get_settings
-from app.core.security.rate_limit import check_rate_limit
+from app.core.security.rate_limit import check_rate_limit, client_identifier
 from app.db.models import User
 from app.db.repositories import stories as stories_repo
 from app.modules.stories import interactions, photos, service
@@ -31,8 +31,12 @@ async def create_story(
     payload: StoryCreateRequest,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> StoryResponse:
+    await check_rate_limit(
+        redis, "rl:story", str(user.id), 86400, settings.story_create_per_day
+    )
     return await service.create_story(db, user.id, payload, settings)
 
 
@@ -94,11 +98,18 @@ async def trending(
 
 @router.get("/search", response_model=list[StoryResponse])
 async def search(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    settings: Annotated[Settings, Depends(get_settings)],
     viewer: Annotated[User | None, Depends(get_optional_user)],
     q: Annotated[str, Query(min_length=2, max_length=100)],
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 30,
 ) -> list[StoryResponse]:
+    identifier = str(viewer.id) if viewer else client_identifier(request, settings.trust_proxy_headers)
+    await check_rate_limit(redis, "rl:search", identifier, 60, 30)
+
+    q = q.strip()
     rows = await stories_repo.search(
         db, viewer_id=viewer.id if viewer else None, query=q, limit=limit
     )

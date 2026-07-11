@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 interface BottomSheetProps {
   open: boolean;
@@ -12,6 +12,30 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onClose, onBack, title, children }: BottomSheetProps) {
+  const [startY, setStartY] = useState<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+    if (diff > 0) {
+      setDragY(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragY > 60) {
+      onClose();
+    }
+    setStartY(null);
+    setDragY(0);
+  };
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true">
@@ -20,8 +44,16 @@ export function BottomSheet({ open, onClose, onBack, title, children }: BottomSh
         className="absolute inset-0 bg-black/30"
         onClick={onClose}
       />
-      <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-sheet bg-bg pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] motion-safe:animate-sheet-up transition-[height,transform] duration-200 ease-lm">
-        <div className="sticky top-0 z-10 flex flex-col items-center justify-center bg-bg pt-3">
+      <div 
+        className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-sheet bg-bg pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] motion-safe:animate-sheet-up transition-[height,transform] duration-200 ease-lm"
+        style={dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined}
+      >
+        <div 
+          className="sticky top-0 z-10 flex flex-col items-center justify-center bg-bg pt-3"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="mb-3 h-1.5 w-12 shrink-0 rounded-full bg-border/80" />
           <div className="relative flex w-full min-h-[32px] items-center justify-center pb-3">
             {onBack && (

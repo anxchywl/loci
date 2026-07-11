@@ -327,8 +327,8 @@ export function HomeManager() {
             </button>
             {authenticated && (
               <button aria-label={t.addStory} onClick={startPickLocation}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-text shadow-lg transition-[transform,box-shadow] duration-150 ease-lm hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95">
-                <Plus size={24} />
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-text shadow-lg transition-[transform,box-shadow] duration-150 ease-lm hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95">
+                <Plus size={22} />
               </button>
             )}
           </div>
