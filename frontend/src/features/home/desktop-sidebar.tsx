@@ -15,6 +15,7 @@ import {
   Navigation,
   Settings,
   Share2,
+  ShieldCheck,
   Sun,
   SunMoon,
   Trash2,
@@ -375,6 +376,18 @@ export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void
             <div className="text-[15px] font-bold text-text">{user.first_name} {user.last_name}</div>
             <div className="text-[13px] text-muted">{user.username ? `@${user.username}` : t.profile}</div>
           </div>
+          {user.is_admin && (
+            <a
+              href="/admin"
+              className={[
+                "flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-bg hover:text-accent focus-visible:bg-bg focus-visible:text-accent",
+                onSettingsClick ? "" : "ml-auto",
+              ].join(" ")}
+              aria-label={t.moderation}
+            >
+              <ShieldCheck size={18} />
+            </a>
+          )}
           {onSettingsClick && (
             <button
               onClick={onSettingsClick}
