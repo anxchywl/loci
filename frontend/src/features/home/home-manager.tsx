@@ -4,6 +4,7 @@ import {
   Bookmark,
   BookOpen,
   ChevronLeft,
+  ChevronRight,
   Flame,
   Info,
   MapPin,
@@ -389,12 +390,13 @@ export function HomeManager() {
                 <button
                   key={item.panel}
                   onClick={() => openMobilePanel(item.panel)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-[15px] font-medium text-text transition-[color,transform] duration-150 ease-lm hover:text-accent focus-visible:text-accent active:scale-[0.99]"
+                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium text-text transition-all duration-150 ease-lm hover:bg-surface active:scale-[0.98] active:bg-surface"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface text-muted transition-colors group-hover:bg-bg group-hover:text-accent">
                     {item.icon}
                   </span>
                   <span className="min-w-0 flex-1">{item.label}</span>
+                  <ChevronRight size={18} className="text-muted/50 transition-colors group-hover:text-accent" />
                 </button>
               ))}
               <div className="flex items-center justify-center gap-1.5 pb-1 pt-4 text-[13px] font-semibold tracking-tight text-muted">
