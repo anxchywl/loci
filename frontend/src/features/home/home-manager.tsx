@@ -135,7 +135,6 @@ export function HomeManager() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onOpen={() => setSidebarOpen(true)}
-        onSearchFocus={focusSearch}
         activePanel={activePanel}
         onSetActivePanel={setActivePanel}
         storyId={openStoryId}

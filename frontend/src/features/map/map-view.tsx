@@ -4,7 +4,7 @@ import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 import type { Category, Story } from "@/features/stories/api";
-import { addCategoryGlyphImages, createMap, setMapLanguage } from "@/lib/map/setup";
+import { addCategoryGlyphImages, createMap, MAP_STYLE_DARK_URL, MAP_STYLE_URL, setMapLanguage } from "@/lib/map/setup";
 import { addStoryLayers, storiesToGeoJson, updateStoryData } from "@/lib/map/story-layers";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -38,6 +38,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const mode = useUiStore((state) => state.mode);
   const pickedLocation = useUiStore((state) => state.pickedLocation);
   const locale = useUiStore((state) => state.locale);
+  const theme = useUiStore((state) => state.theme);
+  const categoriesRef = useRef(categories);
+  const storiesRef = useRef(stories);
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => mapRef.current?.zoomIn({ duration: 250 }),
@@ -117,6 +120,39 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     if (mapRef.current && readyRef.current) setMapLanguage(mapRef.current, locale);
   }, [locale]);
+
+  useEffect(() => { categoriesRef.current = categories; }, [categories]);
+  useEffect(() => { storiesRef.current = stories; }, [stories]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const isDark =
+      theme === "dark" ||
+      (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const styleUrl = isDark ? MAP_STYLE_DARK_URL : MAP_STYLE_URL;
+    if (map.getStyle().sprite?.toString().includes(isDark ? "dark" : "positron")) return;
+    readyRef.current = false;
+    map.setStyle(styleUrl);
+    map.once("styledata", () => {
+      const cats = categoriesRef.current;
+      addCategoryGlyphImages(map, cats)
+        .then(() => {
+          addStoryLayers(map, cats, (storyId, lat, lon) => {
+            if (useUiStore.getState().mode === "browse") {
+              useUiStore.getState().openStory(storyId);
+              if (lat !== undefined && lon !== undefined)
+                useUiStore.getState().requestPanTo(lat, lon);
+            }
+          });
+          readyRef.current = true;
+          updateStoryData(map, storiesToGeoJson(storiesRef.current));
+          setMapLanguage(map, useUiStore.getState().locale);
+        })
+        .catch(console.error);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   const panRequest = useUiStore((state) => state.panRequest);
 

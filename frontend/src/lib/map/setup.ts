@@ -4,6 +4,7 @@ import { categoryGlyphSvg } from "@/lib/icons/category-glyphs";
 import type { CategorySlug, Locale } from "@/lib/i18n/dict";
 
 export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
+export const MAP_STYLE_DARK_URL = "https://tiles.openfreemap.org/styles/dark";
 
 export const DEFAULT_CENTER: [number, number] = [76.889709, 43.238949];
 export const DEFAULT_ZOOM = 11;

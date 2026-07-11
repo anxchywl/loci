@@ -12,7 +12,6 @@ import {
   Menu,
   Moon,
   Navigation,
-  Search,
   Send,
   Settings,
   Share2,
@@ -56,7 +55,6 @@ interface DesktopSidebarProps {
   open: boolean;
   onClose: () => void;
   onOpen: () => void;
-  onSearchFocus: () => void;
   activePanel: Panel;
   onSetActivePanel: (p: Panel) => void;
   storyId: string | null;
@@ -76,11 +74,13 @@ function Item({ icon, label, sidebarOpen, onClick }: ItemProps) {
   return (
     <button
       onClick={onClick}
-      className="mx-1 flex w-[calc(100%-8px)] items-center rounded-lg py-2.5 text-left transition-colors duration-100 hover:bg-surface active:bg-surface"
+      className="group mx-1 flex w-[calc(100%-8px)] items-center rounded-lg py-2.5 text-left"
     >
-      <span className="flex w-10 shrink-0 items-center justify-center text-muted">{icon}</span>
+      <span className="flex w-10 shrink-0 items-center justify-center text-muted transition-colors duration-200 group-hover:text-accent">
+        {icon}
+      </span>
       <span className={[
-        "flex-1 whitespace-nowrap text-[14px] font-medium text-text transition-opacity duration-[230ms]",
+        "flex-1 whitespace-nowrap text-[14px] font-medium text-text transition-[opacity,color] duration-200 group-hover:text-accent",
         sidebarOpen ? "opacity-100" : "opacity-0",
       ].join(" ")}>
         {label}
@@ -343,7 +343,6 @@ export function DesktopSidebar({
   open,
   onClose,
   onOpen,
-  onSearchFocus,
   activePanel,
   onSetActivePanel,
   storyId,
@@ -456,8 +455,6 @@ export function DesktopSidebar({
             <div className="flex h-full w-[320px] shrink-0 flex-col">
               <nav className="flex-1 overflow-y-auto py-2">
                 <div className="space-y-0.5">
-                  <Item icon={<Search size={17} />} label={t.searchPlaceholder} sidebarOpen={open}
-                    onClick={() => { onSearchFocus(); onClose(); }} />
                   <Item icon={<Flame size={17} />} label={t.trending} sidebarOpen={open}
                     onClick={() => openPanel("trending")} />
                   <Item icon={<Navigation size={17} />} label={t.nearby} sidebarOpen={open}
