@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ImagePlus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
 import { useCategories, useCreateStory } from "@/features/stories/hooks";
@@ -33,6 +33,44 @@ export function AddStorySheet() {
   const [isPublic, setIsPublic] = useState(true);
   const [anonymous, setAnonymous] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const [keyboardOpened, setKeyboardOpened] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardInset = () => {
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardInset(inset);
+      if (inset > 0) setKeyboardOpened(true);
+      if (inset === 0 && keyboardOpened) {
+        setKeyboardOpened(false);
+        setFocusedField(null);
+      }
+    };
+
+    updateKeyboardInset();
+    viewport.addEventListener("resize", updateKeyboardInset);
+    viewport.addEventListener("scroll", updateKeyboardInset);
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardInset);
+      viewport.removeEventListener("scroll", updateKeyboardInset);
+    };
+  }, [keyboardOpened]);
+
+  const handleFormFocus = (event: React.FocusEvent<HTMLDivElement>) => {
+    const field = event.target.closest<HTMLElement>("[data-keyboard-field]")?.dataset.keyboardField;
+    if (field) setFocusedField(field);
+  };
+
+  const handleFormBlur = () => {
+    requestAnimationFrame(() => {
+      if (!formRef.current?.contains(document.activeElement)) setFocusedField(null);
+    });
+  };
 
   const reset = () => {
     setCategoryId(null);
@@ -46,6 +84,8 @@ export function AddStorySheet() {
   };
 
   const close = () => {
+    setFocusedField(null);
+    setKeyboardOpened(false);
     reset();
     cancelCompose();
   };
@@ -118,9 +158,16 @@ export function AddStorySheet() {
   }
 
   return (
-    <BottomSheet open={mode === "compose"} onClose={close} title={t.newStory}>
-      <div className="space-y-5">
-        <div>
+    <BottomSheet
+      open={mode === "compose"}
+      onClose={close}
+      title={t.newStory}
+      isEditing={focusedField !== null}
+      activeFieldId={focusedField}
+      keyboardInset={keyboardInset}
+    >
+      <div ref={formRef} className="space-y-5" onFocusCapture={handleFormFocus} onBlurCapture={handleFormBlur}>
+        <div className={`keyboard-form-section ${focusedField ? "keyboard-form-section-hidden" : ""}`} aria-hidden={focusedField !== null}>
           <div className="mb-2 text-[13px] font-medium text-muted">{t.category}</div>
           <div className="flex flex-wrap gap-2">
             {categories?.map((category) => {
@@ -150,7 +197,7 @@ export function AddStorySheet() {
           </div>
         </div>
 
-        <div>
+        <div className={`keyboard-form-section keyboard-form-field ${focusedField && focusedField !== "title" ? "keyboard-form-section-hidden" : ""}`} data-keyboard-field="title">
           <label className="mb-1 block text-[13px] font-medium text-muted" htmlFor="story-title">
             {t.titleLabel}
           </label>
@@ -164,7 +211,7 @@ export function AddStorySheet() {
           />
         </div>
 
-        <div>
+        <div className={`keyboard-form-section keyboard-form-field ${focusedField && focusedField !== "body" ? "keyboard-form-section-hidden" : ""}`} data-keyboard-field="body">
           <label className="mb-1 block text-[13px] font-medium text-muted" htmlFor="story-body">
             {t.bodyLabel}
           </label>
@@ -179,7 +226,7 @@ export function AddStorySheet() {
           />
         </div>
 
-        <div>
+        <div className={`keyboard-form-section ${focusedField ? "keyboard-form-section-hidden" : ""}`} aria-hidden={focusedField !== null}>
           <label className="mb-1 block text-[13px] font-medium text-muted" htmlFor="story-date">
             {t.dateLabel}
           </label>
@@ -192,7 +239,7 @@ export function AddStorySheet() {
           />
         </div>
 
-        <div>
+        <div className={`keyboard-form-section ${focusedField ? "keyboard-form-section-hidden" : ""}`} aria-hidden={focusedField !== null}>
           <div className="mb-2 text-[13px] font-medium text-muted">{t.photosLabel}</div>
           <div className="flex flex-wrap items-center gap-2">
             {photos.map((file, index) => (
@@ -225,7 +272,7 @@ export function AddStorySheet() {
           </div>
         </div>
 
-        <div>
+        <div className={`keyboard-form-section ${focusedField ? "keyboard-form-section-hidden" : ""}`} aria-hidden={focusedField !== null}>
           <div className="mb-2 text-[13px] font-medium text-muted">{t.locationLabel}</div>
           <div className="flex rounded border border-border p-0.5" role="radiogroup">
             <button
@@ -248,7 +295,7 @@ export function AddStorySheet() {
           {approx && <div className="mt-1 text-[13px] text-muted">{t.locationApproxHint}</div>}
         </div>
 
-        <div>
+        <div className={`keyboard-form-section ${focusedField ? "keyboard-form-section-hidden" : ""}`} aria-hidden={focusedField !== null}>
           <div className="mb-2 text-[13px] font-medium text-muted">{t.visibilityLabel}</div>
           <div className="flex rounded border border-border p-0.5" role="radiogroup">
             <button
@@ -270,7 +317,7 @@ export function AddStorySheet() {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-[15px]">
+        <label className={`keyboard-form-section flex items-center gap-2 text-[15px] ${focusedField ? "keyboard-form-section-hidden" : ""}`} aria-hidden={focusedField !== null}>
           <input
             type="checkbox"
             checked={anonymous}
@@ -283,7 +330,8 @@ export function AddStorySheet() {
         <button
           onClick={publish}
           disabled={!canPublish}
-          className="w-full rounded bg-accent py-3 text-[15px] font-semibold text-accent-text transition-transform duration-150 ease-lm active:scale-[0.98] disabled:opacity-50"
+          className={`keyboard-form-section w-full rounded bg-accent py-3 text-[15px] font-semibold text-accent-text transition-transform duration-150 ease-lm active:scale-[0.98] disabled:opacity-50 ${focusedField ? "keyboard-form-section-hidden" : ""}`}
+          aria-hidden={focusedField !== null}
         >
           {createStory.isPending ? t.publishing : t.publish}
         </button>

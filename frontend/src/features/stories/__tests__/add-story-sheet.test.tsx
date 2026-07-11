@@ -86,6 +86,31 @@ describe("AddStorySheet", () => {
     );
   });
 
+  it("keeps only the focused field visible while editing and restores the form after blur", async () => {
+    renderWithQuery(<AddStorySheet />);
+
+    const title = screen.getByLabelText("Title");
+    const body = screen.getByLabelText("Story");
+    const titleSection = title.closest("[data-keyboard-field]");
+    const bodySection = body.closest("[data-keyboard-field]");
+    const categorySection = screen.getByText("Category").closest(".keyboard-form-section");
+
+    fireEvent.focus(title);
+    expect(titleSection).not.toHaveClass("keyboard-form-section-hidden");
+    expect(bodySection).toHaveClass("keyboard-form-section-hidden");
+    expect(categorySection).toHaveClass("keyboard-form-section-hidden");
+
+    fireEvent.focus(body);
+    expect(titleSection).toHaveClass("keyboard-form-section-hidden");
+    expect(bodySection).not.toHaveClass("keyboard-form-section-hidden");
+
+    fireEvent.blur(body);
+    await waitFor(() => {
+      expect(titleSection).not.toHaveClass("keyboard-form-section-hidden");
+      expect(categorySection).not.toHaveClass("keyboard-form-section-hidden");
+    });
+  });
+
   it("shows the review confirmation after publishing, then leaves compose on dismiss", async () => {
     renderWithQuery(<AddStorySheet />);
     await fillRequiredFields();
