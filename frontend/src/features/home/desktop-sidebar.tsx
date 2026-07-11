@@ -6,8 +6,6 @@ import {
   ChevronLeft,
   Flame,
   Info,
-  MapPin,
-  Menu,
   Navigation,
   Search,
   Settings,
@@ -137,13 +135,8 @@ export function DesktopSidebar({
         open ? "opacity-0" : "opacity-100 pointer-events-auto",
       ].join(" ")}
     >
-      <button
-        aria-label="Open menu"
-        onClick={onOpen}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface"
-      >
-        <Menu size={20} />
-      </button>
+      {/* Space for the hamburger button rendered in home-manager */}
+      <div className="h-10 w-10" />
       <div className="my-2 w-6 h-px bg-border" />
       <div className="flex flex-col items-center gap-1">
         <button title={t.searchPlaceholder} onClick={() => { onSearchFocus(); }} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface">
@@ -193,11 +186,8 @@ export function DesktopSidebar({
       >
         {/* ── Main nav (left slot) ── */}
         <div className="flex h-full w-[320px] shrink-0 flex-col">
-          {/* Logo */}
-          <div className="flex h-14 items-center gap-2.5 px-5">
-            <MapPin size={20} className="text-accent" />
-            <span className="text-[17px] font-semibold tracking-tight">{t.appName}</span>
-          </div>
+          {/* Space aligning with the hamburger button height */}
+          <div className="h-14" />
 
           <div className="mx-4 h-px bg-border" />
 

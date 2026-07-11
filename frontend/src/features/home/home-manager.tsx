@@ -1,12 +1,12 @@
 "use client";
 
-import { Flame, Menu, Navigation, Plus, Search, UserRound, X } from "lucide-react";
+import { Flame, MapPin, Menu, Navigation, Plus, Search, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useTelegramAuth } from "@/features/auth/hooks";
 import { DesktopSidebar } from "@/features/home/desktop-sidebar";
-import { MapView, type MapBounds } from "@/features/map/map-view";
+import { MapView, type MapBounds, type MapViewHandle } from "@/features/map/map-view";
 import { AddStorySheet } from "@/features/stories/add-story-sheet";
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
 import { CategoryChip } from "@/features/stories/components/category-chip";
@@ -59,6 +59,7 @@ export function HomeManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mapViewRef = useRef<MapViewHandle>(null);
 
   const { data: categories = [] } = useCategories();
   const { data: stories = [] } = useBboxStories(
@@ -92,9 +93,14 @@ export function HomeManager() {
     }
   };
 
+  // bottom position of the locate button (mirrors the inline style below)
+  const locateBottom = authenticated ? "5.5rem" : "1.5rem";
+  // zoom buttons sit above locate: locate height ~44px + 8px gap = 52px
+  const zoomBottom = authenticated ? "calc(5.5rem + 52px)" : "calc(1.5rem + 52px)";
+
   return (
     <main className="fixed inset-0 overflow-hidden bg-bg">
-      <MapView categories={categories} stories={stories} onBoundsChange={setBounds} />
+      <MapView ref={mapViewRef} categories={categories} stories={stories} onBoundsChange={setBounds} />
 
       {/* Desktop sidebar */}
       <DesktopSidebar
@@ -106,20 +112,45 @@ export function HomeManager() {
         onSearchFocus={focusSearch}
       />
 
-      {/* Desktop close button — shown when sidebar is open */}
-      {mode !== "compose" && sidebarOpen && (
+      {/* Desktop hamburger/close — morphs in place, hidden on mobile */}
+      {mode !== "compose" && (
         <button
-          aria-label={t.cancel}
-          onClick={() => setSidebarOpen(false)}
-          className="absolute left-[332px] top-3 z-50 hidden rounded-lg border border-border bg-bg p-2 text-text shadow-sm transition-all duration-[230ms] ease-lm lg:flex"
+          aria-label={sidebarOpen ? t.cancel : "Menu"}
+          aria-expanded={sidebarOpen}
+          onClick={() => setSidebarOpen((o) => !o)}
+          className="absolute left-3 top-3 z-50 hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-bg text-text shadow-sm lg:flex"
         >
-          <Menu size={20} />
+          <span className={[
+            "absolute transition-all duration-200",
+            sidebarOpen ? "opacity-0 rotate-90 scale-75" : "opacity-100 rotate-0 scale-100",
+          ].join(" ")}>
+            <Menu size={18} />
+          </span>
+          <span className={[
+            "absolute transition-all duration-200",
+            sidebarOpen ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-75",
+          ].join(" ")}>
+            <X size={18} />
+          </span>
         </button>
       )}
 
       {mode !== "compose" && (
-        <div className="absolute inset-x-0 top-0 space-y-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:pl-14">
+        <div
+          className={[
+            "absolute inset-x-0 top-0 space-y-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]",
+            "transition-[padding-left] duration-[230ms] ease-lm",
+            sidebarOpen ? "lg:pl-[332px]" : "lg:pl-14",
+          ].join(" ")}
+        >
           <div className="flex items-center gap-2">
+            {/* Loci brand — shown on desktop when sidebar is open */}
+            {sidebarOpen && (
+              <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+                <MapPin size={17} className="text-accent" />
+                <span className="text-[15px] font-semibold tracking-tight">{t.appName}</span>
+              </div>
+            )}
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-bg px-3 py-2">
               <Search size={16} className="shrink-0 text-muted" />
               <input
@@ -197,14 +228,16 @@ export function HomeManager() {
 
       {mode === "browse" && (
         <>
+          {/* Trending — mobile only */}
           <button
             aria-label={t.trending}
             onClick={() => setTrendingOpen(true)}
-            className="absolute bottom-6 left-4 flex items-center gap-1.5 rounded-full border border-border bg-bg px-4 py-2.5 text-[13px] font-medium shadow-sm transition-transform duration-150 ease-lm active:scale-95"
+            className="absolute bottom-6 left-4 flex items-center gap-1.5 rounded-full border border-border bg-bg px-4 py-2.5 text-[13px] font-medium shadow-sm transition-transform duration-150 ease-lm active:scale-95 lg:hidden"
           >
             <Flame size={15} />
             {t.trending}
           </button>
+
           {authenticated && (
             <button
               aria-label={t.addStory}
@@ -214,15 +247,39 @@ export function HomeManager() {
               <Plus size={22} />
             </button>
           )}
+
+          {/* Locate me */}
           <button
             aria-label={t.locateMe}
             onClick={locateMe}
             disabled={locating}
-            style={{ bottom: authenticated ? '5.5rem' : '1.5rem' }}
+            style={{ bottom: locateBottom }}
             className="absolute right-4 z-10 flex items-center justify-center rounded-full border border-border bg-bg p-3 text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95 disabled:opacity-50"
           >
             <Navigation size={20} className={locating ? "animate-pulse" : undefined} />
           </button>
+
+          {/* Zoom controls — bottom-right above locate */}
+          <div
+            className="absolute right-4 z-10 flex flex-col overflow-hidden rounded-lg border border-border bg-bg shadow-sm"
+            style={{ bottom: zoomBottom }}
+          >
+            <button
+              aria-label="Zoom in"
+              onClick={() => mapViewRef.current?.zoomIn()}
+              className="flex h-9 w-9 items-center justify-center text-[18px] font-light text-text transition-colors hover:bg-surface active:bg-surface"
+            >
+              +
+            </button>
+            <div className="h-px bg-border" />
+            <button
+              aria-label="Zoom out"
+              onClick={() => mapViewRef.current?.zoomOut()}
+              className="flex h-9 w-9 items-center justify-center text-[18px] font-light text-text transition-colors hover:bg-surface active:bg-surface"
+            >
+              −
+            </button>
+          </div>
         </>
       )}
 
