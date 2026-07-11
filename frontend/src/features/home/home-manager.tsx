@@ -185,12 +185,9 @@ export function HomeManager() {
     label: string;
     icon: React.ReactNode;
   }[] = [
-    { panel: "trending", label: t.trending, icon: <Flame size={18} /> },
     { panel: "nearby", label: t.nearby, icon: <Navigation size={18} /> },
     { panel: "saved", label: t.savedStories, icon: <Bookmark size={18} /> },
     { panel: "my-stories", label: t.myStories, icon: <BookOpen size={18} /> },
-    { panel: "about", label: t.about, icon: <Info size={18} /> },
-    { panel: "profile", label: t.profile, icon: <UserRound size={18} /> },
   ];
 
   return (
@@ -322,12 +319,18 @@ export function HomeManager() {
 
       {mode === "browse" && (
         <>
-          {authenticated && (
-            <button aria-label={t.addStory} onClick={startPickLocation}
-              className="absolute bottom-6 left-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-text shadow-lg transition-[transform,box-shadow] duration-150 ease-lm hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 lg:hidden">
-              <Plus size={24} />
+          <div className="absolute bottom-6 left-4 z-10 flex flex-col items-center gap-3 lg:hidden">
+            <button aria-label={t.trending} onClick={() => setTrendingOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95">
+              <Flame size={18} />
             </button>
-          )}
+            {authenticated && (
+              <button aria-label={t.addStory} onClick={startPickLocation}
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-text shadow-lg transition-[transform,box-shadow] duration-150 ease-lm hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95">
+                <Plus size={24} />
+              </button>
+            )}
+          </div>
 
           {authenticated && (
             <button aria-label={t.addStory} onClick={startPickLocation}
@@ -349,7 +352,7 @@ export function HomeManager() {
 
           {/* Zoom controls — above locate */}
           <div
-            className="absolute right-3 z-10 flex flex-col overflow-hidden rounded-lg border border-border bg-bg shadow-sm"
+            className="absolute right-3 z-10 hidden lg:flex flex-col overflow-hidden rounded-lg border border-border bg-bg shadow-sm"
             style={{ bottom: zoomBottom }}
           >
             <button aria-label="Zoom in" onClick={() => mapViewRef.current?.zoomIn()}
@@ -382,7 +385,7 @@ export function HomeManager() {
         <BottomSheet
           open={mobileMenuOpen}
           onClose={closeMobileMenu}
-          title={mobilePanel ? mobilePanelTitles[mobilePanel as Exclude<Panel, "story" | null>] : t.appName}
+          title={mobilePanel ? mobilePanelTitles[mobilePanel as Exclude<Panel, "story" | null>] : ""}
         >
           {!mobilePanel && (
             <div className="space-y-1 px-1 py-1">
@@ -399,9 +402,9 @@ export function HomeManager() {
                   <ChevronRight size={18} className="text-muted/50 transition-colors group-hover:text-accent" />
                 </button>
               ))}
-              <div className="flex items-center justify-center gap-1.5 pb-1 pt-4 text-[13px] font-semibold tracking-tight text-muted">
-                <MapPin size={13} className="text-accent" />
-                {t.appName}
+              <div className="mx-2 my-2 h-px bg-border" />
+              <div className="-mx-3 -mb-4">
+                <ProfilePanel />
               </div>
             </div>
           )}
@@ -453,8 +456,6 @@ export function HomeManager() {
               {mobilePanel === "my-stories" && (
                 <div className="flex min-h-40 items-center justify-center py-12 text-[13px] text-muted">{t.myStories}</div>
               )}
-              {mobilePanel === "about" && <AboutPanel />}
-              {mobilePanel === "profile" && <ProfilePanel />}
             </div>
           )}
         </BottomSheet>
