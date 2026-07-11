@@ -55,18 +55,22 @@ export function BottomSheet({ open, onClose, onBack, title, children }: BottomSh
           onTouchEnd={handleTouchEnd}
         >
           <div className="mb-3 h-1.5 w-12 shrink-0 rounded-full bg-border/80" />
-          <div className="relative flex w-full min-h-[32px] items-center justify-center pb-3">
-            {onBack && (
-              <button
-                aria-label="back"
-                onClick={onBack}
-                className="absolute left-2 flex h-8 w-8 items-center justify-center bg-transparent text-muted transition-colors hover:text-accent focus-visible:text-accent active:scale-95"
-              >
-                <ChevronLeft size={24} />
-              </button>
-            )}
-            {title && <div className="px-12 text-[17px] font-semibold text-center">{title}</div>}
-          </div>
+          {(title || onBack) ? (
+            <div className="relative flex w-full min-h-[32px] items-center justify-center pb-3">
+              {onBack && (
+                <button
+                  aria-label="back"
+                  onClick={onBack}
+                  className="absolute left-2 flex h-8 w-8 items-center justify-center bg-transparent text-muted transition-colors hover:text-accent focus-visible:text-accent active:scale-95"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+              )}
+              {title && <div className="px-12 text-[17px] font-semibold text-center">{title}</div>}
+            </div>
+          ) : (
+            <div className="pb-1" />
+          )}
         </div>
         <div className="px-4 pb-6">{children}</div>
       </div>

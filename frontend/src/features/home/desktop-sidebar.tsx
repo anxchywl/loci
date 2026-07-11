@@ -219,6 +219,28 @@ export function SettingsPanel() {
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
 
+  const handleLocale = (l: Locale) => {
+    if (!document.startViewTransition) {
+      setLocale(l);
+      return;
+    }
+    document.startViewTransition(() => {
+      // Zustand state update
+      setLocale(l);
+      // Wait for React to render the language change
+    });
+  };
+
+  const handleTheme = (v: Theme) => {
+    if (!document.startViewTransition) {
+      setTheme(v);
+      return;
+    }
+    document.startViewTransition(() => {
+      setTheme(v);
+    });
+  };
+
   const localeLabels: Record<Locale, string> = { en: "English", kk: "Қазақша", ru: "Русский" };
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
     { value: "auto", label: t.themeAuto, icon: <SunMoon size={14} /> },
@@ -234,7 +256,7 @@ export function SettingsPanel() {
         </div>
         <div className="flex gap-1.5">
           {locales.map((l) => (
-            <button key={l} onClick={() => setLocale(l)}
+            <button key={l} onClick={() => handleLocale(l)}
               className={[
                 "flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-colors",
                 locale === l
@@ -253,7 +275,7 @@ export function SettingsPanel() {
         </div>
         <div className="flex gap-1.5">
           {themes.map(({ value, label, icon }) => (
-            <button key={value} onClick={() => setTheme(value)}
+            <button key={value} onClick={() => handleTheme(value)}
               className={[
                 "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[13px] font-medium transition-colors",
                 theme === value
