@@ -412,7 +412,7 @@ export function DesktopSidebar({
           <button
             aria-label={activePanel ? "Back" : open ? t.cancel : "Menu"}
             onClick={handleToggle}
-            className="ml-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text transition-colors hover:bg-surface"
+            className="ml-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)]"
           >
             <span className={["absolute transition-all duration-[200ms]",
               (!open && !activePanel) ? "opacity-100 rotate-0 scale-100" : "opacity-0 rotate-90 scale-75",

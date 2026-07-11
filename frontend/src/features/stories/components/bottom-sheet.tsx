@@ -25,7 +25,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
           <button
             aria-label="close"
             onClick={onClose}
-            className="rounded p-1.5 text-muted transition-colors duration-150 ease-lm hover:bg-surface"
+            className="rounded p-1.5 text-muted transition-colors duration-150 ease-lm hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)]"
           >
             <X size={20} />
           </button>

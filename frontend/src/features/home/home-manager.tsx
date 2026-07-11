@@ -154,7 +154,7 @@ export function HomeManager() {
         >
           {/* Mobile: stacked layout */}
           <div className="flex flex-col gap-2 lg:hidden">
-            <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3 py-2">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3 py-2 transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-[var(--lm-focus)]">
               <Search size={16} className="shrink-0 text-muted" />
               <input
                 ref={searchInputRef}
@@ -164,8 +164,8 @@ export function HomeManager() {
                 className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
               />
               {searchQuery && (
-                <button aria-label={t.cancel} onClick={() => setSearchQuery("")}>
-                  <X size={16} className="text-muted" />
+                <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-accent focus-visible:text-accent">
+                  <X size={16} />
                 </button>
               )}
             </div>
@@ -195,7 +195,7 @@ export function HomeManager() {
           {/* Desktop: search anchored left + categories after */}
           <div className="hidden lg:flex items-start gap-2">
             <div className="relative shrink-0 w-[280px]">
-              <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3 py-1.5">
+              <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3 py-1.5 transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-[var(--lm-focus)]">
                 <Search size={14} className="shrink-0 text-muted" />
                 <input
                   ref={searchInputRef}
@@ -205,8 +205,8 @@ export function HomeManager() {
                   className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted"
                 />
                 {searchQuery && (
-                  <button aria-label={t.cancel} onClick={() => setSearchQuery("")}>
-                    <X size={14} className="text-muted" />
+                  <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-accent focus-visible:text-accent">
+                    <X size={14} />
                   </button>
                 )}
               </div>
@@ -251,7 +251,7 @@ export function HomeManager() {
           <button
             aria-label={t.trending}
             onClick={() => setTrendingOpen(true)}
-            className="absolute bottom-6 left-4 flex items-center gap-1.5 rounded-full border border-border bg-bg px-4 py-2.5 text-[13px] font-medium shadow-sm transition-transform duration-150 ease-lm active:scale-95 lg:hidden"
+            className="absolute bottom-6 left-4 flex items-center gap-1.5 rounded-full border border-border bg-bg px-4 py-2.5 text-[13px] font-medium shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 lg:hidden"
           >
             <Flame size={15} />
             {t.trending}
@@ -270,7 +270,7 @@ export function HomeManager() {
             onClick={locateMe}
             disabled={locating}
             style={{ bottom: locateBottom }}
-            className="absolute right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-transform duration-150 ease-lm active:scale-95 disabled:opacity-50"
+            className="absolute right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 disabled:opacity-50"
           >
             <Navigation size={16} className={locating ? "animate-pulse" : undefined} />
           </button>
@@ -281,12 +281,12 @@ export function HomeManager() {
             style={{ bottom: zoomBottom }}
           >
             <button aria-label="Zoom in" onClick={() => mapViewRef.current?.zoomIn()}
-              className="flex h-[34px] w-9 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface active:bg-surface">
+              className="flex h-[34px] w-9 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface">
               +
             </button>
             <div className="h-px bg-border" />
             <button aria-label="Zoom out" onClick={() => mapViewRef.current?.zoomOut()}
-              className="flex h-[34px] w-9 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface active:bg-surface">
+              className="flex h-[34px] w-9 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface">
               −
             </button>
           </div>
