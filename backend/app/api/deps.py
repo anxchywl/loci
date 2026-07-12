@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.security.jwt import TokenError, decode_access_token
 from app.db.models import User
+from app.db.repositories import refresh_tokens as refresh_tokens_repo
 from app.db.repositories import users as users_repo
 from app.db.session import get_session
 from app.integrations.redis import get_redis_client
@@ -36,7 +37,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
         )
     try:
-        user_id = decode_access_token(credentials.credentials, settings)
+        user_id, session_id = decode_access_token(credentials.credentials, settings)
     except TokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
@@ -44,6 +45,12 @@ async def get_current_user(
 
     user = await users_repo.get_by_id(db, user_id)
     if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
+    if session_id is not None and not await refresh_tokens_repo.has_active_session(
+        db, session_id, datetime.now(UTC)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )

@@ -1,6 +1,7 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
 
 let accessToken: string | null = null;
+let refreshPromise: Promise<boolean> | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -20,17 +21,25 @@ export class ApiError extends Error {
 }
 
 async function refreshAccessToken(): Promise<boolean> {
-  const response = await fetch(`${BASE_URL}/auth/refresh`, {
-    method: "POST",
-    credentials: "include",
-  });
-  if (!response.ok) {
-    accessToken = null;
-    return false;
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      accessToken = null;
+      return false;
+    }
+    const body = (await response.json()) as { access_token: string };
+    accessToken = body.access_token;
+    return true;
+  })();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
-  const body = (await response.json()) as { access_token: string };
-  accessToken = body.access_token;
-  return true;
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

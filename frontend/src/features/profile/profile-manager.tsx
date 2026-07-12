@@ -17,6 +17,7 @@ type Tab = "stories" | "saved";
 export function ProfileManager() {
   const t = useDict();
   const { status, user } = useTelegramAuth();
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
   const authenticated = status === "authenticated";
   const openStory = useUiStore((state) => state.openStory);
 
@@ -49,6 +50,16 @@ export function ProfileManager() {
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <MapPinned size={24} className="text-muted" />
             <span className="text-[15px] text-muted">{t.openInTelegram}</span>
+            {botUsername && (
+              <a
+                href={`https://t.me/${botUsername}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[15px] font-semibold text-accent transition-colors hover:underline"
+              >
+                @{botUsername}
+              </a>
+            )}
           </div>
         )}
 

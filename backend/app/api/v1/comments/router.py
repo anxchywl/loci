@@ -20,7 +20,12 @@ async def delete_comment(
     comment_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> Response:
+    await check_rate_limit(
+        redis, "rl:comment-delete", str(user.id), 60, settings.comment_deletes_per_minute
+    )
     await service.delete_comment(db, comment_id, user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

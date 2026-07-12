@@ -85,6 +85,25 @@ async def test_only_comment_author_can_delete(client, db_session):
     assert (await client.delete(f"/api/v1/comments/{comment_id}")).status_code == 204
 
 
+async def test_comment_idempotency_key_returns_original_comment(client):
+    await authenticate(client, telegram_id=1)
+    story_id = await create_story(client)
+    headers = {"Idempotency-Key": "comment-retry-1"}
+    first = await client.post(
+        f"/api/v1/stories/{story_id}/comments",
+        json={"body": "hello"},
+        headers=headers,
+    )
+    second = await client.post(
+        f"/api/v1/stories/{story_id}/comments",
+        json={"body": "hello"},
+        headers=headers,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] == first.json()["id"]
+
+
 async def test_comments_on_private_story_hidden_from_others(client):
     await authenticate(client, telegram_id=1)
     story_id = await create_story(client, visibility="private")

@@ -29,9 +29,9 @@ class StoryNotFound(HTTPException):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found")
 
 
-def _author_label(user) -> str:
-    # human-readable handle for admin notifications (admins may moderate anonymous
-    # stories, so the real author is intentionally shown to them here)
+def _author_label(user, *, anonymous: bool = False) -> str:
+    if anonymous:
+        return "an anonymous author"
     if user is None:
         return "a user"
     if user.username:
@@ -91,6 +91,7 @@ async def create_story(
     if not await categories_repo.exists(db, payload.category_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown category")
 
+    await stories_repo.lock_author_for_story_creation(db, author_id)
     since = datetime.now(UTC) - timedelta(days=1)
     if await stories_repo.count_by_author_since(db, author_id, since) >= settings.story_create_per_day:
         raise HTTPException(
@@ -137,7 +138,9 @@ async def create_story(
             title=payload.title,
         )
         notifications.dispatch_admins_pending_review(
-            settings, title=payload.title, author_label=_author_label(author)
+            settings,
+            title=payload.title,
+            author_label=_author_label(author, anonymous=payload.is_anonymous),
         )
     return serialize_story(row, viewer_id=author_id)
 
@@ -190,7 +193,9 @@ async def resubmit_story(
         title=row["title"],
     )
     notifications.dispatch_admins_pending_review(
-        settings, title=row["title"], author_label=_author_label(author)
+        settings,
+        title=row["title"],
+        author_label=_author_label(author, anonymous=row["is_anonymous"]),
     )
     return serialize_story(row, await _photo_responses(db, story_id, settings), viewer_id=author_id)
 

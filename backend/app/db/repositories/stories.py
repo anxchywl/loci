@@ -299,6 +299,10 @@ async def count_by_author_since(db: AsyncSession, author_id: int, since) -> int:
     return (await db.execute(stmt)).scalar_one()
 
 
+async def lock_author_for_story_creation(db: AsyncSession, author_id: int) -> None:
+    await db.execute(select(func.pg_advisory_xact_lock(author_id)))
+
+
 async def set_hidden(db: AsyncSession, story_id: uuid.UUID, hidden: bool) -> None:
     story = await db.get(Story, story_id)
     if story is not None:

@@ -120,7 +120,9 @@ badges, global stats.
 |---|---|
 | Auth (per IP, transport-level) | 10 / min |
 | Create story | 10 / day |
+| Update, resubmit, or delete story | 30 / min |
 | Comment | 10 / min |
+| Delete comment | 30 / min |
 | Reaction | 30 / min |
 | Report | 20 / day |
 | Request upload URL | 20 / hour |
@@ -167,14 +169,14 @@ re-check visibility on the server for every request.
 | Route | Behavior |
 |---|---|
 | `GET /api/v1/categories` | 12 seeded categories with slug/color/icon/position |
-| `POST /api/v1/stories` | Create; validates category, title ≤120, body ≤4000, lat/lon ranges; approx mode fuzzes server-side before the point is readable; enforces 10/day |
+| `POST /api/v1/stories` | Create; validates category, title ≤120, body ≤4000, lat/lon ranges; approx mode fuzzes server-side before the point is readable; enforces 10/day. An optional `Idempotency-Key` makes safe client retries return the original story. |
 | `GET /api/v1/stories/{id}` | Story with author (null when anonymous), public point only, counts, viewer flags, ready photos via presigned GETs |
 | `DELETE /api/v1/stories/{id}` | Author only; cascades photos/comments/reactions/bookmarks/reports |
 | `GET /api/v1/stories/nearby?lat&lon&radius_meters&category_id&limit` | Geography-cast `ST_DWithin` (metric, antimeridian-safe), ordered by distance |
 | `GET /api/v1/stories/bbox?min_lat&min_lon&max_lat&max_lon&category_id&limit` | Viewport query for the map |
 | `GET /api/v1/stories/trending?limit` | Ordered by reactions+comments, then recency |
 | `GET /api/v1/stories/search?q&limit` | ILIKE over title+body; respects visibility |
-| `GET/POST /api/v1/stories/{id}/comments` | List (hidden excluded) / create (≤1000 chars) |
+| `GET/POST /api/v1/stories/{id}/comments` | List (hidden excluded) / create (≤1000 chars). An optional `Idempotency-Key` makes safe client retries return the original comment. |
 | `DELETE /api/v1/comments/{id}` | Comment author only |
 | `POST/DELETE /api/v1/stories/{id}/reactions` | Idempotent heart toggle |
 | `POST/DELETE /api/v1/stories/{id}/bookmark` | Idempotent bookmark toggle |

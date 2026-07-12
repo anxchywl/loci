@@ -70,7 +70,9 @@ class Settings(BaseSettings):
 
     auth_requests_per_minute: int = 10
     story_create_per_day: int = 10
+    story_mutations_per_minute: int = 30
     comments_per_minute: int = 10
+    comment_deletes_per_minute: int = 30
     reactions_per_minute: int = 30
     reports_per_day: int = 20
     upload_urls_per_hour: int = 20

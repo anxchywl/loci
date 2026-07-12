@@ -48,9 +48,7 @@ def _decode_cursor(cursor: str | None) -> tuple[datetime, uuid.UUID] | None:
 
 
 def _queue_author(row) -> AuthorResponse | None:
-    # anonymity does not hide the author from an admin — moderation needs to know
-    # who submitted, so the real author is always shown in the queue.
-    if row["author_id"] is None:
+    if row["is_anonymous"] or row["author_id"] is None:
         return None
     return AuthorResponse(
         id=row["author_id"],

@@ -2,13 +2,14 @@ import time
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db_session, get_optional_user, get_redis
 from app.core.config import Settings, get_settings
 from app.core.observability import observe
+from app.core.security import idempotency
 from app.core.security.rate_limit import check_rate_limit, client_identifier
 from app.core.security.text import clean_line
 from app.db.models import User
@@ -38,11 +39,30 @@ async def create_story(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     redis: Annotated[Redis, Depends(get_redis)],
     settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> StoryResponse:
     await check_rate_limit(
         redis, "rl:story", str(user.id), 86400, settings.story_create_per_day
     )
-    return await service.create_story(db, user.id, payload, settings)
+    reservation, cached = await idempotency.begin(
+        redis,
+        scope="story-create",
+        user_id=user.id,
+        idempotency_key=idempotency_key,
+        request_hash_value=idempotency.request_hash(payload.model_dump_json()),
+        ttl_seconds=86_400,
+    )
+    if cached is not None:
+        return StoryResponse.model_validate_json(cached)
+    try:
+        result = await service.create_story(db, user.id, payload, settings)
+    except Exception:
+        if reservation is not None:
+            await idempotency.abandon(redis, reservation)
+        raise
+    if reservation is not None:
+        await idempotency.complete(redis, reservation, result.model_dump_json(), 86_400)
+    return result
 
 
 @router.get("/nearby", response_model=list[StoryResponse])
@@ -152,8 +172,12 @@ async def update_story(
     payload: StoryUpdateRequest,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> StoryResponse:
+    await check_rate_limit(
+        redis, "rl:story-mutation", str(user.id), 60, settings.story_mutations_per_minute
+    )
     return await service.update_story(db, story_id, user.id, payload, settings)
 
 
@@ -162,8 +186,12 @@ async def resubmit_story(
     story_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> StoryResponse:
+    await check_rate_limit(
+        redis, "rl:story-mutation", str(user.id), 60, settings.story_mutations_per_minute
+    )
     return await service.resubmit_story(db, story_id, user.id, settings)
 
 
@@ -172,7 +200,12 @@ async def delete_story(
     story_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> Response:
+    await check_rate_limit(
+        redis, "rl:story-mutation", str(user.id), 60, settings.story_mutations_per_minute
+    )
     await service.delete_story(db, story_id, user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -195,11 +228,30 @@ async def add_comment(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     redis: Annotated[Redis, Depends(get_redis)],
     settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> CommentResponse:
     await check_rate_limit(
         redis, "rl:comment", str(user.id), 60, settings.comments_per_minute
     )
-    return await service.add_comment(db, story_id, user.id, payload.body)
+    reservation, cached = await idempotency.begin(
+        redis,
+        scope=f"comment-create:{story_id}",
+        user_id=user.id,
+        idempotency_key=idempotency_key,
+        request_hash_value=idempotency.request_hash(payload.model_dump_json()),
+        ttl_seconds=86_400,
+    )
+    if cached is not None:
+        return CommentResponse.model_validate_json(cached)
+    try:
+        result = await service.add_comment(db, story_id, user.id, payload.body)
+    except Exception:
+        if reservation is not None:
+            await idempotency.abandon(redis, reservation)
+        raise
+    if reservation is not None:
+        await idempotency.complete(redis, reservation, result.model_dump_json(), 86_400)
+    return result
 
 
 @router.post("/{story_id}/reactions", status_code=status.HTTP_204_NO_CONTENT)

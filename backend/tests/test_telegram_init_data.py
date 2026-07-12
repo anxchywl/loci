@@ -68,6 +68,18 @@ def test_empty_bot_token_rejected():
         validate(build_init_data(), bot_token="")
 
 
+def test_malformed_timestamp_is_rejected_without_server_error():
+    init_data = build_init_data(extra={"auth_date": "999999999999999999999999"})
+    with pytest.raises(TelegramInitDataError, match="auth_date is invalid"):
+        validate(init_data)
+
+
+def test_duplicate_fields_are_rejected():
+    init_data = build_init_data()
+    with pytest.raises(TelegramInitDataError, match="duplicate fields"):
+        validate(f"{init_data}&auth_date=1")
+
+
 async def test_replay_guard_rejects_second_use():
     redis = FakeRedis(decode_responses=True)
     init_data = build_init_data()

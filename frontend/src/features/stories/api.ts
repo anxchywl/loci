@@ -78,6 +78,13 @@ export interface CreateStoryInput {
   happened_on: string | null;
 }
 
+function makeIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export interface BboxParams {
   minLat: number;
   minLon: number;
@@ -118,7 +125,11 @@ export function fetchStory(id: string): Promise<Story> {
 }
 
 export function createStory(input: CreateStoryInput): Promise<Story> {
-  return apiFetch<Story>("/stories", { method: "POST", body: JSON.stringify(input) });
+  return apiFetch<Story>("/stories", {
+    method: "POST",
+    body: JSON.stringify(input),
+    headers: { "Idempotency-Key": makeIdempotencyKey() },
+  });
 }
 
 export function updateStory(id: string, input: UpdateStoryInput): Promise<Story> {
@@ -157,6 +168,7 @@ export function postComment(storyId: string, body: string): Promise<StoryComment
   return apiFetch<StoryComment>(`/stories/${storyId}/comments`, {
     method: "POST",
     body: JSON.stringify({ body }),
+    headers: { "Idempotency-Key": makeIdempotencyKey() },
   });
 }
 

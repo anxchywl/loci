@@ -13,6 +13,11 @@ class TelegramInitDataError(Exception):
     pass
 
 
+_MAX_INIT_DATA_LENGTH = 8192
+_MAX_INIT_DATA_FIELDS = 64
+_MAX_TELEGRAM_ID = 2**52 - 1
+
+
 @dataclass(frozen=True)
 class TelegramUserData:
     telegram_id: int
@@ -31,7 +36,23 @@ def validate_telegram_init_data(
     if not bot_token:
         raise TelegramInitDataError("Telegram bot token is not configured")
 
-    parsed = dict(parse_qsl(init_data, keep_blank_values=True))
+    if not init_data or len(init_data) > _MAX_INIT_DATA_LENGTH:
+        raise TelegramInitDataError("Telegram init data is invalid")
+
+    try:
+        pairs = parse_qsl(
+            init_data,
+            keep_blank_values=True,
+            strict_parsing=True,
+            max_num_fields=_MAX_INIT_DATA_FIELDS,
+        )
+    except ValueError as exc:
+        raise TelegramInitDataError("Telegram init data is invalid") from exc
+
+    if len({key for key, _ in pairs}) != len(pairs):
+        raise TelegramInitDataError("Telegram init data contains duplicate fields")
+
+    parsed = dict(pairs)
     received_hash = parsed.pop("hash", None)
     if not received_hash:
         raise TelegramInitDataError("Telegram init data hash is missing")
@@ -53,7 +74,7 @@ def validate_telegram_init_data(
 
     try:
         auth_date = datetime.fromtimestamp(int(auth_date_raw), tz=UTC)
-    except ValueError as exc:
+    except (ValueError, OverflowError, OSError) as exc:
         raise TelegramInitDataError("Telegram auth_date is invalid") from exc
 
     age_seconds = (datetime.now(UTC) - auth_date).total_seconds()
@@ -69,12 +90,19 @@ def validate_telegram_init_data(
         raise TelegramInitDataError("Telegram user payload is missing")
 
     try:
-        user_payload: dict[str, Any] = json.loads(user_raw)
-    except json.JSONDecodeError as exc:
+        user_payload = json.loads(user_raw)
+    except (json.JSONDecodeError, TypeError) as exc:
         raise TelegramInitDataError("Telegram user payload is invalid") from exc
 
+    if not isinstance(user_payload, dict):
+        raise TelegramInitDataError("Telegram user payload is invalid")
+
     telegram_id = user_payload.get("id")
-    if not isinstance(telegram_id, int):
+    if (
+        not isinstance(telegram_id, int)
+        or isinstance(telegram_id, bool)
+        or not 0 < telegram_id <= _MAX_TELEGRAM_ID
+    ):
         raise TelegramInitDataError("Telegram user id is invalid")
 
     return TelegramUserData(

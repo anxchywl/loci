@@ -22,7 +22,17 @@ interface TelegramWebApp {
 function webApp(): TelegramWebApp | null {
   if (typeof window === "undefined") return null;
   const tg = (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
-  return tg && tg.initData ? tg : null;
+  return tg ?? null;
+}
+
+function launchDataFromLocation(): { initData: string; startParam?: string } {
+  if (typeof window === "undefined") return { initData: "" };
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  return {
+    initData: hash.get("tgWebAppData") ?? "",
+    startParam: hash.get("tgWebAppStartParam") ?? query.get("tgWebAppStartParam") ?? undefined,
+  };
 }
 
 const THEME_KEYS = [
@@ -46,20 +56,31 @@ function applyThemeParams(tg: TelegramWebApp): void {
   root.dataset.tg = "1";
 }
 
-export function initTelegram(): TelegramLaunch | null {
-  const tg = webApp();
-  if (!tg) return null;
+export async function initTelegram(): Promise<TelegramLaunch | null> {
+  const deadline = Date.now() + 4000;
+  while (Date.now() < deadline) {
+    const tg = webApp();
+    const locationData = launchDataFromLocation();
+    const initDataRaw = tg?.initData || locationData.initData;
+    if (!initDataRaw) {
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      continue;
+    }
 
-  applyThemeParams(tg);
-  tg.onEvent?.("themeChanged", () => applyThemeParams(tg));
-  tg.ready?.();
-  tg.expand?.();
+    if (tg) {
+      applyThemeParams(tg);
+      tg.onEvent?.("themeChanged", () => applyThemeParams(tg));
+      tg.ready?.();
+      tg.expand?.();
+    }
 
-  return {
-    initDataRaw: tg.initData,
-    languageCode: tg.initDataUnsafe?.user?.language_code,
-    startParam: tg.initDataUnsafe?.start_param,
-  };
+    return {
+      initDataRaw,
+      languageCode: tg?.initDataUnsafe?.user?.language_code,
+      startParam: tg?.initDataUnsafe?.start_param ?? locationData.startParam,
+    };
+  }
+  return null;
 }
 
 export function openTelegramLink(url: string): boolean {

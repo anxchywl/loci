@@ -341,12 +341,23 @@ export function HomeManager() {
             )}
           </div>
 
-          {authenticated && (
-            <button aria-label={t.addStory} onClick={startPickLocation}
-              className="absolute bottom-6 right-4 hidden rounded-full bg-accent p-4 text-accent-text shadow-lg transition-transform duration-150 ease-lm active:scale-95 lg:block">
-              <Plus size={22} />
-            </button>
-          )}
+          <button
+            aria-label={t.addStory}
+            onClick={() => {
+              if (authenticated) {
+                startPickLocation();
+              } else {
+                setSidebarOpen(true);
+                setActivePanel("profile");
+              }
+            }}
+            className={[
+              "absolute bottom-6 z-10 hidden rounded-full bg-accent p-4 text-accent-text shadow-lg",
+              "transition-[left,transform,box-shadow] duration-[230ms] ease-lm hover:shadow-xl active:scale-95 lg:block",
+              sidebarOpen ? "lg:left-[336px]" : "lg:left-16",
+            ].join(" ")}>
+            <Plus size={22} />
+          </button>
 
           {/* Locate me */}
           <button

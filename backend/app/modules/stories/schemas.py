@@ -145,7 +145,7 @@ class RejectRequest(BaseModel):
 
 
 class ModerationQueueItem(BaseModel):
-    """Full detail an admin needs to decide, including the exact author id."""
+    """Moderation details with anonymous author identity redacted."""
 
     id: uuid.UUID
     category_id: int

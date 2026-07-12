@@ -38,6 +38,7 @@ import {
   useStory,
   useTrending,
 } from "@/features/stories/hooks";
+import { AppIcon } from "@/components/app-icon";
 import { categoryIcons } from "@/lib/icons/category-glyphs";
 import { type Locale, locales } from "@/lib/i18n/dict";
 import { useDict } from "@/lib/i18n/use-dict";
@@ -368,6 +369,7 @@ export function SettingsPanel() {
 export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void }) {
   const t = useDict();
   const { user } = useTelegramAuth();
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
   return (
     <div className="flex h-full flex-col gap-5 px-4 py-2">
@@ -410,6 +412,24 @@ export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void
         <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
           <MapPinned size={22} className="text-muted" />
           <span className="text-[13px] text-muted">{t.openInTelegram}</span>
+          {botUsername && (
+            <a
+              href={`https://t.me/${botUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[13px] font-semibold text-accent transition-colors hover:underline"
+            >
+              @{botUsername}
+            </a>
+          )}
+          {onSettingsClick && (
+            <button
+              onClick={onSettingsClick}
+              className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-[13px] font-medium text-muted transition-colors hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent"
+            >
+              <Settings size={16} /> {t.settings}
+            </button>
+          )}
         </div>
       )}
 
@@ -582,7 +602,7 @@ export function DesktopSidebar({
                   "flex items-center justify-center gap-1.5 pb-1 pt-3 transition-all duration-[230ms] ease-lm",
                   open ? "opacity-100" : "opacity-0",
                 ].join(" ")}>
-                  <MapPin size={13} className="text-accent" />
+                  <AppIcon size={24} />
                   <span className="whitespace-nowrap text-[13px] font-semibold tracking-tight text-muted">{t.appName}</span>
                 </div>
               </div>

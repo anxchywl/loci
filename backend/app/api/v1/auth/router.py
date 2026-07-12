@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, get_redis
@@ -50,6 +51,15 @@ def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
     )
 
 
+def _check_cookie_request_origin(request: Request, settings: Settings) -> None:
+    origin = request.headers.get("origin")
+    if origin and origin not in settings.allowed_origins:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="cross-origin authentication request rejected",
+        )
+
+
 async def _check_auth_rate_limit(
     redis: Redis, request: Request, settings: Settings
 ) -> None:
@@ -78,9 +88,15 @@ async def telegram_auth(
             bot_token=settings.telegram_bot_token,
             max_age_seconds=settings.telegram_init_data_max_age_seconds,
         )
-        await reject_replayed_init_data(
-            redis, payload.init_data, settings.telegram_init_data_max_age_seconds
-        )
+        try:
+            await reject_replayed_init_data(
+                redis, payload.init_data, settings.telegram_init_data_max_age_seconds
+            )
+        except RedisError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="authentication replay protection is temporarily unavailable",
+            ) from exc
     except TelegramInitDataError as exc:
         logger.warning("telegram auth validation failed")
         raise HTTPException(
@@ -111,6 +127,7 @@ async def refresh_auth_token(
     settings: Annotated[Settings, Depends(get_settings)],
     redis: Annotated[Redis, Depends(get_redis)],
 ) -> RefreshResponse:
+    _check_cookie_request_origin(request, settings)
     await _check_auth_rate_limit(redis, request, settings)
     refresh_token_value = request.cookies.get(REFRESH_TOKEN_COOKIE)
     if not refresh_token_value:
@@ -140,6 +157,7 @@ async def logout_auth_session(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> Response:
+    _check_cookie_request_origin(request, settings)
     refresh_token_value = request.cookies.get(REFRESH_TOKEN_COOKIE)
     if refresh_token_value:
         await logout(db, refresh_token_value)

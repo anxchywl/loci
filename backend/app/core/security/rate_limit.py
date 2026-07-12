@@ -1,5 +1,6 @@
 from fastapi import HTTPException, Request, status
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 
 async def check_rate_limit(
@@ -10,10 +11,16 @@ async def check_rate_limit(
     max_requests: int,
 ) -> None:
     key = f"{key_prefix}:{identifier}"
-    async with redis.pipeline(transaction=False) as pipe:
-        pipe.incr(key)
-        pipe.expire(key, window_seconds)
-        results = await pipe.execute()
+    try:
+        async with redis.pipeline(transaction=True) as pipe:
+            pipe.incr(key)
+            pipe.expire(key, window_seconds)
+            results = await pipe.execute()
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="rate limiting is temporarily unavailable",
+        ) from exc
 
     count: int = results[0]
     if count > max_requests:

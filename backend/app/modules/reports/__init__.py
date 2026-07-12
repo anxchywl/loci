@@ -39,9 +39,8 @@ from app.modules.stories.schemas import AuthorResponse, PhotoResponse
 logger = logging.getLogger(__name__)
 
 
-def _author(author_id, username, first_name, photo_url) -> AuthorResponse | None:
-    # anonymity never hides the author from an admin reviewing reports
-    if author_id is None:
+def _author(author_id, username, first_name, photo_url, *, anonymous: bool = False) -> AuthorResponse | None:
+    if anonymous or author_id is None:
         return None
     return AuthorResponse(id=author_id, username=username, first_name=first_name, photo_url=photo_url)
 
@@ -58,7 +57,13 @@ def _item_from_row(row: dict, settings: Settings, photos) -> ReportedStoryItem:
         is_hidden=story.is_hidden,
         auto_hidden_at=story.auto_hidden_at,
         created_at=story.created_at,
-        author=_author(row["author_id"], row["author_username"], row["author_first_name"], row["author_photo_url"]),
+        author=_author(
+            row["author_id"],
+            row["author_username"],
+            row["author_first_name"],
+            row["author_photo_url"],
+            anonymous=story.is_anonymous,
+        ),
         report_count=row["report_count"],
         reporter_count=row["reporter_count"],
         pending_count=row["pending_count"],

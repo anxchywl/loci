@@ -67,6 +67,15 @@ async def test_admin_approve_makes_story_public(client):
     assert detail["moderation_status"] == "approved"
 
 
+async def test_admin_queue_does_not_expose_anonymous_author(client):
+    story_id = await create_pending(client, telegram_id=1, is_anonymous=True)
+    await authenticate(client, telegram_id=ADMIN_TG)
+    queue = (await client.get("/api/v1/admin/moderation/queue")).json()
+    item = next(item for item in queue["items"] if item["id"] == story_id)
+    assert item["author"] is None
+    assert "author_id" not in str(item)
+
+
 async def test_double_approval_conflicts(client):
     story_id = await create_pending(client)
     await authenticate(client, telegram_id=ADMIN_TG)

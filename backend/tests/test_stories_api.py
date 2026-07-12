@@ -67,6 +67,17 @@ async def test_create_exact_story_returns_exact_point(client):
     assert body["lon"] == pytest.approx(ALMATY[1])
 
 
+async def test_story_idempotency_key_returns_original_story(client):
+    await authenticate(client)
+    payload = story_payload()
+    headers = {"Idempotency-Key": "story-retry-1"}
+    first = await client.post("/api/v1/stories", json=payload, headers=headers)
+    second = await client.post("/api/v1/stories", json=payload, headers=headers)
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] == first.json()["id"]
+
+
 async def test_approx_story_never_returns_exact_point(client, db_session):
     await authenticate(client)
     response = await client.post(

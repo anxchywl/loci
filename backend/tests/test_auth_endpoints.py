@@ -104,6 +104,18 @@ async def test_logout_revokes_refresh_token(client):
     assert response.status_code == 401
 
 
+async def test_logout_revokes_access_token_session(client):
+    auth = await client.post(AUTH_URL, json={"init_data": build_init_data()})
+    access_token = auth.json()["access_token"]
+    logout = await client.post(LOGOUT_URL)
+    assert logout.status_code == 204
+
+    response = await client.get(
+        "/api/v1/profile/me", headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert response.status_code == 401
+
+
 async def test_auth_rate_limit_returns_429(client):
     limit = get_settings().auth_requests_per_minute
     for _ in range(limit):

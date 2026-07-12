@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +34,11 @@ async def upsert_from_telegram(db: AsyncSession, data: TelegramUserData) -> User
     user = await db.get(User, user_id)
     assert user is not None
     return user
+
+
+async def get_by_telegram_id(db: AsyncSession, telegram_id: int) -> User | None:
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    return result.scalar_one_or_none()
 
 
 async def get_by_id(db: AsyncSession, user_id: int) -> User | None:
