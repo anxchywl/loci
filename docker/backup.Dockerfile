@@ -7,7 +7,7 @@ COPY deploy/verify-backup.sh /usr/local/bin/verify-backup.sh
 RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/verify-backup.sh \
     && echo "0 3 * * * /usr/local/bin/backup.sh >> /backups/backup.log 2>&1" > /etc/crontabs/root
 
-HEALTHCHECK --interval=5m --timeout=30s --retries=3 \
+HEALTHCHECK --interval=5m --timeout=30s --start-period=1m --start-interval=10s --retries=3 \
   CMD /usr/local/bin/verify-backup.sh /backups
 
 CMD ["crond", "-f", "-l", "2"]
