@@ -41,7 +41,7 @@ export function StoryCalendar({ value, onChange, onClose, calendarLabel, previou
   };
 
   return (
-    <div className="story-calendar motion-safe:animate-story-state" aria-label={calendarLabel}>
+    <div className="story-calendar story-calendar-full motion-safe:animate-story-state" aria-label={calendarLabel}>
       <div className="mb-3 flex items-center justify-between">
         <button type="button" aria-label={previousLabel} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="icon-button">
           <ChevronLeft size={18} />

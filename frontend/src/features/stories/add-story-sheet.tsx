@@ -11,6 +11,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { useMobileFocusMode } from "@/features/stories/use-mobile-focus-mode";
 import { StoryCalendar } from "@/features/stories/components/story-calendar";
 import { PhotoPicker } from "@/features/stories/components/photo-picker";
+import { PhotoEditor } from "@/features/stories/components/photo-editor";
 import { finalizeStoryText, normalizeStoryText } from "@/features/stories/text-input";
 
 const MAX_PHOTOS = 5;
@@ -39,6 +40,7 @@ export function AddStorySheet() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [editingPhotoIndex, setEditingPhotoIndex] = useState<number | null>(null);
   const focusMode = useMobileFocusMode();
 
   const reset = () => {
@@ -52,6 +54,7 @@ export function AddStorySheet() {
     setPhotos([]);
     setUploadProgress(0);
     setCalendarOpen(false);
+    setEditingPhotoIndex(null);
   };
 
   const close = () => {
@@ -132,9 +135,16 @@ export function AddStorySheet() {
     <BottomSheet
       open={mode === "compose"}
       onClose={close}
-      title={t.newStory}
+      title={calendarOpen ? t.dateLabel : editingPhotoIndex !== null ? t.editPhoto : t.newStory}
+      onBack={calendarOpen ? () => setCalendarOpen(false) : editingPhotoIndex !== null ? () => setEditingPhotoIndex(null) : undefined}
       isEditing={focusMode.isFocusMode}
     >
+      <div key={calendarOpen ? "calendar" : editingPhotoIndex !== null ? "photo-editor" : "story-form"} className="motion-safe:animate-story-state">
+        {calendarOpen ? (
+          <StoryCalendar value={happenedOn} onChange={setHappenedOn} onClose={() => setCalendarOpen(false)} calendarLabel={t.dateLabel} previousLabel={t.previousMonth} nextLabel={t.nextMonth} closeLabel={t.cancel} />
+        ) : editingPhotoIndex !== null && photos[editingPhotoIndex] ? (
+          <PhotoEditor file={photos[editingPhotoIndex]} onCancel={() => setEditingPhotoIndex(null)} onApply={(file) => { setPhotos((current) => current.map((photo, index) => index === editingPhotoIndex ? file : photo)); setEditingPhotoIndex(null); }} cancelLabel={t.cancel} applyLabel={t.apply} title={t.editPhoto} />
+        ) : (
       <div
         className={`keyboard-form-stack ${focusMode.isFocusMode ? "keyboard-form-stack-focus" : ""} ${focusMode.isSwitching ? "keyboard-form-stack-switching" : ""}`}
         data-story-form
@@ -206,7 +216,7 @@ export function AddStorySheet() {
           <div className="mb-1 block text-[13px] font-medium text-muted">
             {t.dateLabel}
           </div>
-          {calendarOpen ? <StoryCalendar value={happenedOn} onChange={setHappenedOn} onClose={() => setCalendarOpen(false)} calendarLabel={t.dateLabel} previousLabel={t.previousMonth} nextLabel={t.nextMonth} closeLabel={t.cancel} /> : (
+          {(
             <button type="button" onClick={() => setCalendarOpen(true)} className="flex w-full items-center justify-between rounded border border-border bg-bg px-3 py-2 text-left text-[15px]">
               <span className={happenedOn ? "" : "text-muted"}>{happenedOn || t.dateLabel}</span>
               <span className="text-[13px] text-muted">{happenedOn ? t.change : t.pick}</span>
@@ -216,7 +226,7 @@ export function AddStorySheet() {
 
         <div className={focusMode.sectionClass("photos")} aria-hidden={focusMode.isFocusMode}>
           <div className="mb-2 text-[13px] font-medium text-muted">{t.photosLabel}</div>
-          <PhotoPicker photos={photos} maxPhotos={MAX_PHOTOS} onAdd={addPhotos} onRemove={(index) => setPhotos((current) => current.filter((_, i) => i !== index))} addLabel={t.addPhoto} removeLabel={t.cancel} disabled={createStory.isPending} />
+          <PhotoPicker photos={photos} maxPhotos={MAX_PHOTOS} onAdd={addPhotos} onRemove={(index) => setPhotos((current) => current.filter((_, i) => i !== index))} onConfigure={setEditingPhotoIndex} addLabel={t.addPhoto} removeLabel={t.cancel} disabled={createStory.isPending} />
         </div>
 
         <div className={focusMode.sectionClass("location")} aria-hidden={focusMode.isFocusMode}>
@@ -300,6 +310,8 @@ export function AddStorySheet() {
             </>
           )}
         </div>
+      </div>
+        )}
       </div>
     </BottomSheet>
   );

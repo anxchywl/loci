@@ -51,7 +51,7 @@ body {
 
 .keyboard-sheet-editing {
   max-height: min(82dvh, 660px);
-  padding-bottom: calc(12px + min(env(safe-area-inset-bottom), 34px));
+  padding-bottom: calc(4px + min(env(safe-area-inset-bottom), 20px));
   scroll-padding: 16px 0 calc(42px + min(env(safe-area-inset-bottom), 34px));
   scroll-behavior: smooth;
 }
@@ -83,7 +83,7 @@ body {
 }
 
 .keyboard-form-stack-focus {
-  gap: 8px;
+  gap: 4px;
 }
 
 .icon-button {
@@ -100,6 +100,15 @@ body {
 .icon-button:hover { background: var(--lm-surface); color: var(--lm-text); }
 
 .story-calendar { padding: 4px 0 2px; }
+.story-calendar-full { min-height: 380px; padding-top: 12px; }
+.photo-editor-canvas { position: relative; display: flex; height: min(62vw, 360px); min-height: 280px; align-items: center; justify-content: center; overflow: hidden; border-radius: 12px; background: #111; touch-action: none; }
+.photo-editor-image { max-width: none; object-fit: contain; user-select: none; }
+.photo-editor-frame { position: absolute; inset: 50% auto auto 50%; height: min(62vw, 320px); width: min(62vw, 320px); transform: translate(-50%, -50%); border: 1px dashed rgba(255,255,255,.8); box-shadow: 0 0 0 9999px rgba(0,0,0,.68); }
+.photo-editor-frame span { position: absolute; background: rgba(255,255,255,.45); }
+.photo-editor-frame span:nth-child(1), .photo-editor-frame span:nth-child(2) { top: 33.33%; bottom: 33.33%; width: 1px; }
+.photo-editor-frame span:nth-child(1) { left: 33.33%; } .photo-editor-frame span:nth-child(2) { right: 33.33%; }
+.photo-editor-frame span:nth-child(3), .photo-editor-frame span:nth-child(4) { left: 33.33%; right: 33.33%; height: 1px; }
+.photo-editor-frame span:nth-child(3) { top: 33.33%; } .photo-editor-frame span:nth-child(4) { bottom: 33.33%; }
 
 .story-rejection { overflow: hidden; animation: rejection-expand 200ms cubic-bezier(0.2, 0, 0, 1); }
 
@@ -155,6 +164,8 @@ body {
     transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
     margin 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.keyboard-sheet-editing .keyboard-form-footer { margin-top: 0; }
 
 .keyboard-form-stack-switching .keyboard-form-section-active,
 .keyboard-form-stack-switching .keyboard-form-section-collapsed {
