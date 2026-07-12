@@ -46,6 +46,7 @@ interface Dict {
   nextMonth: string;
   editPhoto: string;
   apply: string;
+  photoInvalid: string;
   locationLabel: string;
   locationApprox: string;
   locationExact: string;
@@ -197,6 +198,7 @@ export const dict: Record<Locale, Dict> = {
     nextMonth: "Next month",
     editPhoto: "Edit photo",
     apply: "Apply",
+    photoInvalid: "Choose a valid image up to 10 MB.",
     locationLabel: "Location",
     locationApprox: "Approximate",
     locationExact: "Exact",
@@ -359,6 +361,7 @@ export const dict: Record<Locale, Dict> = {
     nextMonth: "Келесі ай",
     editPhoto: "Фотосуретті өңдеу",
     apply: "Қолдану",
+    photoInvalid: "10 МБ-қа дейінгі жарамды суретті таңдаңыз.",
     locationLabel: "Орналасқан жері",
     locationApprox: "Шамамен",
     locationExact: "Нақты",
@@ -521,6 +524,7 @@ export const dict: Record<Locale, Dict> = {
     nextMonth: "Следующий месяц",
     editPhoto: "Изменить фото",
     apply: "Применить",
+    photoInvalid: "Выберите корректное изображение размером до 10 МБ.",
     locationLabel: "Место",
     locationApprox: "Примерно",
     locationExact: "Точно",

@@ -1,6 +1,11 @@
 import uuid
+import warnings
+from io import BytesIO
 
 from fastapi import HTTPException, status
+from PIL import Image, UnidentifiedImageError
+from PIL.Image import DecompressionBombError, DecompressionBombWarning
+from pillow_heif import register_heif_opener
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -16,6 +21,34 @@ _EXTENSIONS = {
     "image/webp": "webp",
     "image/heic": "heic",
 }
+_FORMATS = {
+    "image/jpeg": {"JPEG"},
+    "image/png": {"PNG"},
+    "image/webp": {"WEBP"},
+    "image/heic": {"HEIF", "HEIC"},
+}
+_MAX_SOURCE_EDGE = 20_000
+_MAX_SOURCE_PIXELS = 40_000_000
+
+register_heif_opener()
+
+
+def _validate_image_bytes(raw: bytes, content_type: str) -> None:
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DecompressionBombWarning)
+            with Image.open(BytesIO(raw)) as image:
+                width, height = image.size
+                if max(width, height) > _MAX_SOURCE_EDGE or width * height > _MAX_SOURCE_PIXELS:
+                    raise ValueError("image dimensions are too large")
+                if image.format not in _FORMATS[content_type]:
+                    raise ValueError("image content does not match its declared type")
+                image.verify()
+    except (DecompressionBombError, DecompressionBombWarning, UnidentifiedImageError, OSError, ValueError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is not a valid supported image",
+        ) from error
 
 
 async def create_upload_url(
@@ -84,6 +117,15 @@ async def complete_upload(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Photo must not exceed {settings.max_upload_size_mb} MB",
         )
+
+    try:
+        raw = storage.get_object_bytes(photo.object_key)
+        _validate_image_bytes(raw, photo.content_type)
+    except HTTPException:
+        storage.delete_object(photo.object_key)
+        await photos_repo.mark_failed(db, photo.id)
+        await db.commit()
+        raise
 
     from app.workers.tasks import optimize_photo
 

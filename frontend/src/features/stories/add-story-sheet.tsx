@@ -42,6 +42,7 @@ export function AddStorySheet() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [editingPhotoIndex, setEditingPhotoIndex] = useState<number | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const focusMode = useMobileFocusMode();
 
   const reset = () => {
@@ -56,6 +57,7 @@ export function AddStorySheet() {
     setUploadProgress(0);
     setCalendarOpen(false);
     setEditingPhotoIndex(null);
+    setPhotoBusy(false);
   };
 
   const close = () => {
@@ -72,10 +74,36 @@ export function AddStorySheet() {
     finishCompose();
   };
 
-  const addPhotos = (files: FileList | null) => {
-    if (!files) return;
-    const accepted = Array.from(files).filter((file) => file.size <= MAX_PHOTO_BYTES && ["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type));
-    setPhotos((current) => [...current, ...accepted].slice(0, MAX_PHOTOS));
+  const addPhotos = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file || photos.length >= MAX_PHOTOS || photoBusy) return;
+    if (file.size > MAX_PHOTO_BYTES || !["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type)) {
+      showToast(t.photoInvalid);
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      if (file.type !== "image/heic") {
+        const url = URL.createObjectURL(file);
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve();
+            image.onerror = () => reject(new Error("invalid image"));
+            image.src = url;
+          });
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      const nextIndex = photos.length;
+      setPhotos((current) => [...current, file].slice(0, MAX_PHOTOS));
+      setEditingPhotoIndex(nextIndex);
+    } catch {
+      showToast(t.photoInvalid);
+    } finally {
+      setPhotoBusy(false);
+    }
   };
 
   const canPublish =
@@ -139,7 +167,6 @@ export function AddStorySheet() {
       open={mode === "compose"}
       onClose={close}
       title={calendarOpen ? undefined : editingPhotoIndex !== null ? t.editPhoto : t.newStory}
-      onBack={editingPhotoIndex !== null ? () => setEditingPhotoIndex(null) : undefined}
       isEditing={focusMode.isFocusMode}
     >
       <div key={calendarOpen ? "calendar" : editingPhotoIndex !== null ? "photo-editor" : "story-form"} className="motion-safe:animate-story-state">
@@ -229,7 +256,7 @@ export function AddStorySheet() {
 
         <div className={focusMode.sectionClass("photos")} aria-hidden={focusMode.isFocusMode}>
           <div className="mb-2 text-[13px] font-medium text-muted">{t.photosLabel}</div>
-          <PhotoPicker photos={photos} maxPhotos={MAX_PHOTOS} onAdd={addPhotos} onRemove={(index) => setPhotos((current) => current.filter((_, i) => i !== index))} onConfigure={setEditingPhotoIndex} addLabel={t.addPhoto} removeLabel={t.cancel} disabled={createStory.isPending} />
+          <PhotoPicker photos={photos} maxPhotos={MAX_PHOTOS} onAdd={addPhotos} onRemove={(index) => setPhotos((current) => current.filter((_, i) => i !== index))} addLabel={t.addPhoto} removeLabel={t.cancel} disabled={createStory.isPending || photoBusy} />
         </div>
 
         <div className={focusMode.sectionClass("location")} aria-hidden={focusMode.isFocusMode}>

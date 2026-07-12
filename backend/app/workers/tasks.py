@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 MAX_EDGE = 2048
 THUMB_EDGE = 400
 WEBP_QUALITY = 82
+Image.MAX_IMAGE_PIXELS = 40_000_000
 
 register_heif_opener()
 

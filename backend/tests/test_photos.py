@@ -7,6 +7,7 @@ from PIL import Image
 
 from app.core.config import get_settings
 from app.integrations import storage
+from app.modules.stories.photos import _validate_image_bytes
 from tests.test_stories_api import authenticate, story_payload
 
 
@@ -19,6 +20,18 @@ def _minio_reachable() -> bool:
 
 
 needs_minio = pytest.mark.skipif(not _minio_reachable(), reason="minio not running")
+
+
+def test_uploaded_image_validation_rejects_corrupt_and_spoofed_bytes():
+    valid = BytesIO()
+    Image.new("RGB", (16, 16), color=(20, 30, 40)).save(valid, format="JPEG")
+    _validate_image_bytes(valid.getvalue(), "image/jpeg")
+
+    with pytest.raises(Exception):
+        _validate_image_bytes(b"not an image", "image/jpeg")
+
+    with pytest.raises(Exception):
+        _validate_image_bytes(valid.getvalue(), "image/png")
 
 
 async def create_story(client) -> str:
