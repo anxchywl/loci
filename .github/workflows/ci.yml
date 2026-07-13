@@ -228,7 +228,8 @@ jobs:
             cd "$REPO"
             git fetch origin main
             git checkout main
-            git pull --ff-only origin main
+            git fetch origin main
+            git reset --hard origin/main
             echo "$ENV_FILE_CONTENT" > .env
             chmod 600 .env
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin

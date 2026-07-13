@@ -42,7 +42,6 @@ import { AppIcon } from "@/components/app-icon";
 import { categoryIcons } from "@/lib/icons/category-glyphs";
 import { type Locale, locales } from "@/lib/i18n/dict";
 import { useDict } from "@/lib/i18n/use-dict";
-import { setMapLanguage } from "@/lib/map/setup";
 import { openTelegramLink } from "@/lib/telegram/init";
 import { type Theme, useUiStore } from "@/stores/ui-store";
 
@@ -211,7 +210,7 @@ function StoryPanel({
             {t.categories[category.slug]}
           </span>
         )}
-        <span>{story.author ? (story.author.username ?? story.author.first_name) : t.anonymous}</span>
+        <span>{story.author ? (story.author.username ? `@${story.author.username}` : story.author.first_name) : t.anonymous}</span>
         {story.happened_on && <span>{story.happened_on}</span>}
         <span className="flex items-center gap-0.5">
           <MapPin size={13} />
@@ -536,7 +535,7 @@ export function DesktopSidebar({
       <div className="flex h-full w-[320px] flex-col">
 
         {/* ── Header ── */}
-        <div className="flex h-14 shrink-0 items-center">
+        <div className="relative flex h-14 shrink-0 items-center">
           <button
             aria-label={activePanel ? "Back" : open ? t.cancel : "Menu"}
             onClick={handleToggle}
@@ -553,12 +552,21 @@ export function DesktopSidebar({
             ].join(" ")}><ChevronLeft size={18} /></span>
           </button>
 
-          {/* Panel name — left, fades in when panel active */}
-          <div className={[
-            "ml-2 flex-1 text-[15px] font-semibold transition-all duration-[230ms] ease-lm",
-            activePanel ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 pointer-events-none",
-          ].join(" ")}>
-            {activePanel ? panelLabels[activePanel] : ""}
+          {/* brand and panel title share the header slot for a smooth transition */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className={[
+              "flex items-center gap-1 transition-all duration-[230ms] ease-lm",
+              open && !activePanel ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 pointer-events-none",
+            ].join(" ")}>
+              <AppIcon size={32} />
+              <span className="-ml-1.5 whitespace-nowrap text-[15px] font-semibold tracking-tight text-muted">{t.appName}</span>
+            </div>
+            <div className={[
+              "absolute left-12 text-[15px] font-semibold transition-all duration-[230ms] ease-lm",
+              activePanel ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 pointer-events-none",
+            ].join(" ")}>
+              {activePanel ? panelLabels[activePanel] : ""}
+            </div>
           </div>
         </div>
 
@@ -596,14 +604,6 @@ export function DesktopSidebar({
                     onClick={() => openPanel("about")} />
                   <Item icon={<UserRound size={17} />} label={t.profile} sidebarOpen={open}
                     onClick={() => openPanel("profile")} />
-                </div>
-                {/* Loci brand — centered at bottom, visible when sidebar open */}
-                <div className={[
-                  "flex items-center justify-center gap-1.5 pb-1 pt-3 transition-all duration-[230ms] ease-lm",
-                  open ? "opacity-100" : "opacity-0",
-                ].join(" ")}>
-                  <AppIcon size={24} />
-                  <span className="whitespace-nowrap text-[13px] font-semibold tracking-tight text-muted">{t.appName}</span>
                 </div>
               </div>
             </div>

@@ -16,6 +16,11 @@ export interface StoryAuthor {
   photo_url: string | null;
 }
 
+export function authorLabel(author: StoryAuthor | null): string | null {
+  if (!author) return null;
+  return author.username ? `@${author.username}` : author.first_name;
+}
+
 export interface StoryPhoto {
   id: string;
   url: string;

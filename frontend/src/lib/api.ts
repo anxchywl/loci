@@ -23,17 +23,22 @@ export class ApiError extends Error {
 export async function refreshAccessToken(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
-    const response = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!response.ok) {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        accessToken = null;
+        return false;
+      }
+      const body = (await response.json()) as { access_token: string };
+      accessToken = body.access_token;
+      return true;
+    } catch {
       accessToken = null;
       return false;
     }
-    const body = (await response.json()) as { access_token: string };
-    accessToken = body.access_token;
-    return true;
   })();
   try {
     return await refreshPromise;

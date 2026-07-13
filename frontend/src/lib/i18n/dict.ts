@@ -87,6 +87,17 @@ interface Dict {
   exploreMap: string;
   openInTelegram: string;
   locateMe: string;
+  showAllPins: string;
+  showClusters: string;
+  mapView: string;
+  mapLabels: string;
+  mapLight: string;
+  mapDark: string;
+  mapNone: string;
+  mapCountries: string;
+  mapAllDetails: string;
+  mapClean: string;
+  mapBright: string;
   nearby: string;
   noNearby: string;
   settings: string;
@@ -283,6 +294,17 @@ export const dict: Record<Locale, Dict> = {
     exploreMap: "Explore the map",
     openInTelegram: "Open in Telegram to sign in",
     locateMe: "Find my location",
+    showAllPins: "Show every pin",
+    showClusters: "Group pins into clusters",
+    mapView: "Map view",
+    mapLabels: "Labels",
+    mapLight: "Light map",
+    mapDark: "Dark map",
+    mapNone: "No labels",
+    mapCountries: "Countries only",
+    mapAllDetails: "All places",
+    mapClean: "Clean map",
+    mapBright: "Detailed map",
     nearby: "Nearby",
     noNearby: "No stories found nearby",
     settings: "Settings",
@@ -490,6 +512,17 @@ export const dict: Record<Locale, Dict> = {
     exploreMap: "Картаны шолу",
     openInTelegram: "Кіру үшін Telegram-да ашыңыз",
     locateMe: "Орналасқан жерімді табу",
+    showAllPins: "Барлық белгіні көрсету",
+    showClusters: "Белгілерді топтау",
+    mapView: "Карта көрінісі",
+    mapLabels: "Жазулар",
+    mapLight: "Жарық карта",
+    mapDark: "Қараңғы карта",
+    mapNone: "Жазуларсыз",
+    mapCountries: "Тек елдер",
+    mapAllDetails: "Барлық орындар",
+    mapClean: "Таза карта",
+    mapBright: "Егжей-тегжейлі карта",
     nearby: "Жақын маңда",
     noNearby: "Жақын маңда оқиғалар табылмады",
     settings: "Параметрлер",
@@ -697,6 +730,17 @@ export const dict: Record<Locale, Dict> = {
     exploreMap: "Смотреть карту",
     openInTelegram: "Откройте в Telegram, чтобы войти",
     locateMe: "Где я?",
+    showAllPins: "Показать все метки",
+    showClusters: "Сгруппировать метки",
+    mapView: "Вид карты",
+    mapLabels: "Подписи",
+    mapLight: "Светлая карта",
+    mapDark: "Тёмная карта",
+    mapNone: "Без подписей",
+    mapCountries: "Только страны",
+    mapAllDetails: "Все места",
+    mapClean: "Чистая карта",
+    mapBright: "Детальная карта",
     nearby: "Рядом",
     noNearby: "Рядом историй не найдено",
     settings: "Настройки",

@@ -19,7 +19,8 @@ if [ -z "$DOMAIN" ]; then
   exit 1
 fi
 
-git pull --ff-only
+git fetch origin main
+git reset --hard origin/main
 
 TARGET=${DEPLOYMENT_TARGET:-$(sed -n 's/^DEPLOYMENT_TARGET=//p' .env | tail -n 1)}
 if [ -z "$TARGET" ]; then

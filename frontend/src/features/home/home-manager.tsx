@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Flame,
   Info,
+  Layers,
   MapPin,
   Menu,
   Navigation,
@@ -72,6 +73,19 @@ export function HomeManager() {
   const mode = useUiStore((state) => state.mode);
   const categoryFilter = useUiStore((state) => state.categoryFilter);
   const setCategoryFilter = useUiStore((state) => state.setCategoryFilter);
+  const showAllPins = useUiStore((state) => state.showAllPins);
+  const toggleShowAllPins = useUiStore((state) => state.toggleShowAllPins);
+  const setShowAllPins = useUiStore((state) => state.setShowAllPins);
+  const mapLabelDensity = useUiStore((state) => state.mapLabelDensity);
+  const setMapLabelDensity = useUiStore((state) => state.setMapLabelDensity);
+  const hydrateShowAllPins = useUiStore((state) => state.hydrateShowAllPins);
+  const hydratePreferences = useUiStore((state) => state.hydratePreferences);
+  // apply the persisted pin-display preference after mount (kept out of the
+  // initial render so SSR and first client render match)
+  useEffect(() => {
+    hydratePreferences();
+    hydrateShowAllPins();
+  }, [hydratePreferences, hydrateShowAllPins]);
   const startPickLocation = useUiStore((state) => state.startPickLocation);
   const cancelCompose = useUiStore((state) => state.cancelCompose);
   const trendingOpen = useUiStore((state) => state.trendingOpen);
@@ -86,6 +100,8 @@ export function HomeManager() {
   const [activePanel, setActivePanel] = useState<Panel>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<Panel>(null);
+  const mapViewOpen = useUiStore((state) => state.mapViewOpen);
+  const setMapViewOpen = useUiStore((state) => state.setMapViewOpen);
   const [nearbyLocation, setNearbyLocation] = useState<{ lat: number; lon: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
@@ -95,7 +111,8 @@ export function HomeManager() {
   // correct counts at any story volume; above it, individual pins with
   // client-side clustering. 0 disables server clustering entirely.
   const serverClusterMaxZoom = Number(process.env.NEXT_PUBLIC_SERVER_CLUSTER_MAX_ZOOM ?? 9);
-  const clusterMode = bounds !== null && bounds.zoom < serverClusterMaxZoom;
+  const clusterMode =
+    !showAllPins && bounds !== null && bounds.zoom < serverClusterMaxZoom;
   // zoom is deliberately left out of the pins params: fractional zoom changes
   // would otherwise churn the query cache key on every pinch
   const { data: pins = [] } = useMapPins(
@@ -178,9 +195,10 @@ export function HomeManager() {
     }
   };
 
-  // locate button bottom; zoom buttons sit 40px above it (36px button + 4px gap)
+  // keep the map controls in a separated vertical stack on desktop
   const locateBottom = "1.5rem";
-  const zoomBottom = "calc(1.5rem + 40px)";
+  const zoomBottom = "calc(1.5rem + 48px)";
+  const pinToggleBottom = "calc(1.5rem + 48px + 76px + 8px)";
 
   const openMobilePanel = (panel: Panel) => {
     if (panel === "nearby") {
@@ -300,20 +318,20 @@ export function HomeManager() {
           </div>
 
           {/* Desktop: search anchored left + categories after */}
-          <div className="hidden lg:flex items-start gap-2">
-            <div className="relative shrink-0 w-[280px]">
-              <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3 py-1.5 transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-[var(--lm-focus)]">
-                <Search size={14} className="shrink-0 text-muted" />
+          <div className="hidden min-w-0 items-start gap-3 overflow-hidden lg:flex">
+            <div className="relative w-[320px] shrink-0">
+              <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3.5 py-2 transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-[var(--lm-focus)]">
+                <Search size={16} className="shrink-0 text-muted" />
                 <input
                   ref={searchInputRef}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.replace(/^\s+/, "").slice(0, 100))}
                   placeholder={t.searchPlaceholder}
-                  className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted"
+                  className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
                 />
                 {searchQuery && (
                   <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-accent focus-visible:text-accent">
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 )}
               </div>
@@ -332,7 +350,7 @@ export function HomeManager() {
               )}
             </div>
             {!searching && (
-              <div className="flex flex-1 gap-2 overflow-x-auto [scrollbar-width:none]">
+              <div className="flex min-w-0 flex-1 gap-3 overflow-x-auto [scrollbar-width:none]">
                 {categories.map((cat) => (
                   <CategoryChip key={cat.id} category={cat} selected={categoryFilter === cat.id}
                     onClick={() => setCategoryFilter(categoryFilter === cat.id ? null : cat.id)} />
@@ -398,25 +416,57 @@ export function HomeManager() {
             onClick={locateMe}
             disabled={locating}
             style={{ bottom: locateBottom }}
-            className="absolute right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 disabled:opacity-50"
+            className="absolute right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 disabled:opacity-50 lg:h-10 lg:w-10"
           >
             <Navigation size={16} className={locating ? "animate-pulse" : undefined} />
           </button>
 
           {/* Zoom controls — above locate */}
           <div
-            className="absolute right-3 z-10 hidden lg:flex flex-col overflow-hidden rounded-lg border border-border bg-bg shadow-sm"
+            className="absolute right-3 z-10 flex flex-col overflow-hidden rounded-lg border border-border bg-bg shadow-sm"
             style={{ bottom: zoomBottom }}
           >
             <button aria-label="Zoom in" onClick={() => mapViewRef.current?.zoomIn()}
-              className="flex h-[34px] w-9 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface">
+              className="flex h-[38px] w-10 items-center justify-center text-[20px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface">
               +
             </button>
             <div className="h-px bg-border" />
             <button aria-label="Zoom out" onClick={() => mapViewRef.current?.zoomOut()}
-              className="flex h-[34px] w-9 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface">
+              className="flex h-[38px] w-10 items-center justify-center text-[20px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface">
               −
             </button>
+          </div>
+
+          {/* Pin display toggle — clustered counts vs. every pin visible */}
+          <div className="absolute right-3 z-10 block" style={{ bottom: pinToggleBottom }}>
+            <button
+              aria-label={t.mapView}
+              aria-expanded={mapViewOpen}
+              title={t.mapView}
+              onClick={() => setMapViewOpen(!mapViewOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,background-color,transform] duration-150 ease-lm hover:border-accent hover:text-accent active:scale-95"
+            >
+              <Layers size={18} />
+            </button>
+            {mapViewOpen && (
+              <div className="absolute bottom-12 right-0 w-56 rounded-xl border border-border bg-bg p-2 shadow-lg motion-safe:animate-story-state">
+                <div className="px-2 pb-1 text-[12px] font-semibold text-muted">{t.mapView}</div>
+                <div className="space-y-1">
+                  <button onClick={() => setShowAllPins(true)} className={["flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[13px]", showAllPins ? "bg-surface font-medium" : "hover:bg-surface"].join(" ")}>
+                    <span>{t.showAllPins}</span>{showAllPins && <span aria-hidden="true">✓</span>}
+                  </button>
+                  <button onClick={() => setShowAllPins(false)} className={["flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[13px]", !showAllPins ? "bg-surface font-medium" : "hover:bg-surface"].join(" ")}>
+                    <span>{t.showClusters}</span>{!showAllPins && <span aria-hidden="true">✓</span>}
+                  </button>
+                </div>
+                <div className="mt-2 border-t border-border px-2 pt-2 text-[12px] font-semibold text-muted">{t.mapLabels}</div>
+                {([["none", t.mapNone], ["countries", t.mapCountries], ["all", t.mapAllDetails]] as const).map(([value, label]) => (
+                  <button key={value} onClick={() => { setMapLabelDensity(value); mapViewRef.current?.setLabelDensity(value); }} className="w-full rounded-lg px-2 py-2 text-left text-[13px] hover:bg-surface">
+                    {label} {mapLabelDensity === value ? "✓" : ""}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

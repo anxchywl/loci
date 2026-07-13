@@ -1,13 +1,14 @@
 "use client";
 
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import type { Category, MapCluster, StoryPin } from "@/features/stories/api";
-import { addCategoryGlyphImages, createMap, MAP_STYLE_DARK_URL, MAP_STYLE_URL, setMapLanguage } from "@/lib/map/setup";
+import { addCategoryGlyphImages, applyMapTheme, createMap, type MapLabelDensity, MAP_STYLE_DARK_URL, MAP_STYLE_URL, saveCamera, setMapLabelDensity, setMapLanguage } from "@/lib/map/setup";
 import {
   addStoryLayers,
   clustersToGeoJson,
+  removeStoryLayers,
   storiesToGeoJson,
   updateServerClusterData,
   updateStoryData,
@@ -26,6 +27,8 @@ export interface MapViewHandle {
   zoomIn: () => void;
   zoomOut: () => void;
   flyToUser: (lat: number, lon: number) => void;
+  setLabelDensity: (density: MapLabelDensity) => void;
+  setDetailedAppearance: () => void;
 }
 
 interface MapViewProps {
@@ -49,10 +52,28 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const pickedLocation = useUiStore((state) => state.pickedLocation);
   const locale = useUiStore((state) => state.locale);
   const theme = useUiStore((state) => state.theme);
+  const mapLabelDensity = useUiStore((state) => state.mapLabelDensity);
+  const showAllPins = useUiStore((state) => state.showAllPins);
   const categoriesRef = useRef(categories);
   const storiesRef = useRef(stories);
   const clustersRef = useRef(clusters);
-  const [mapLoading, setMapLoading] = useState(false);
+  const showAllPinsRef = useRef(showAllPins);
+  // false until the basemap has been themed, so the coloured cover can hide the
+  // brief light-tile flash on a dark reload
+  const [themeReady, setThemeReady] = useState(false);
+
+  // stable click handler shared by every place that (re)creates the story
+  // layers: initial load, theme restyle, and clustering-mode toggle
+  const handleStoryClick = useCallback(
+    (storyId: string, lat?: number, lon?: number) => {
+      if (useUiStore.getState().mode !== "browse") return;
+      useUiStore.getState().openStory(storyId);
+      if (lat !== undefined && lon !== undefined) {
+        useUiStore.getState().requestPanTo(lat, lon);
+      }
+    },
+    [],
+  );
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => mapRef.current?.zoomIn({ duration: 250 }),
@@ -84,13 +105,40 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         map.flyTo({ center: [lon, lat], zoom: 15, duration: 2200, curve: 1.5, essential: true });
       }, 800);
     },
+    setLabelDensity: (density: MapLabelDensity) => {
+      const map = mapRef.current;
+      if (map) setMapLabelDensity(map, density);
+    },
+    setDetailedAppearance: () => {
+      const map = mapRef.current;
+      if (map) setMapLabelDensity(map, "all");
+    },
   }));
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current || categories.length === 0) return;
+    if (!containerRef.current || mapRef.current) return;
 
-    const map = createMap(containerRef.current);
+    const initialIsDarkTheme =
+      theme === "dark" ||
+      (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const map = createMap(containerRef.current, initialIsDarkTheme ? MAP_STYLE_DARK_URL : MAP_STYLE_URL);
     mapRef.current = map;
+
+    // Safety net: if the point layer asks for a pin-<id> glyph that hasn't been
+    // rasterized yet (categories can resolve after the style/layers load),
+    // register it on demand so pins never render blank.
+    map.on("styleimagemissing", (event) => {
+      const imageId = event.id;
+      if (!imageId.startsWith("pin-") || map.hasImage(imageId)) return;
+      const categoryId = Number(imageId.slice("pin-".length));
+      const category = categoriesRef.current.find((c) => c.id === categoryId);
+      if (!category) return;
+      void addCategoryGlyphImages(map, [category])
+        .then(() => {
+          if (readyRef.current) updateStoryData(map, storiesToGeoJson(storiesRef.current));
+        })
+        .catch(() => { /* transient; the next render retries */ });
+    });
 
     const emitBounds = () => {
       const bounds = map.getBounds();
@@ -104,19 +152,26 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     };
 
     map.on("load", () => {
-      addCategoryGlyphImages(map, categories)
+      // Read the *current* theme, not initialIsDarkTheme: preferences may have
+      // hydrated (auto → dark) between mount and this async load event, and the
+      // theme effect can't correct it yet because readyRef is still false.
+      const st = useUiStore.getState();
+      const darkNow = st.theme === "dark" || (st.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      // Theme the basemap synchronously on the first painted frame (not inside
+      // the async glyph promise) so a dark reload never flashes the light base.
+      applyMapTheme(map, darkNow, false);
+      setMapLabelDensity(map, mapLabelDensity);
+      // reveal the map (fade out the themed cover) now that colours are correct
+      requestAnimationFrame(() => setThemeReady(true));
+      // categoriesRef.current, not the closure `categories`, which is captured
+      // empty at mount before the categories query resolves
+      addCategoryGlyphImages(map, categoriesRef.current)
         .then(() => {
-          addStoryLayers(map, (storyId, lat, lon) => {
-            if (useUiStore.getState().mode === "browse") {
-              useUiStore.getState().openStory(storyId);
-              if (lat !== undefined && lon !== undefined) {
-                useUiStore.getState().requestPanTo(lat, lon);
-              }
-            }
-          });
+          addStoryLayers(map, handleStoryClick, !showAllPinsRef.current);
           readyRef.current = true;
           updateStoryData(map, storiesToGeoJson(stories));
           updateServerClusterData(map, clustersToGeoJson(clustersRef.current));
+          setMapLanguage(map, locale);
           emitBounds();
         })
         .catch((error) => {
@@ -124,8 +179,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         });
     });
 
-    map.on("moveend", emitBounds);
+    map.on("moveend", () => {
+      emitBounds();
+      saveCamera(map);
+    });
+    map.on("movestart", () => useUiStore.getState().setMapViewOpen(false));
     map.on("click", (event) => {
+      useUiStore.getState().setMapViewOpen(false);
       if (useUiStore.getState().mode === "pick-location") {
         useUiStore.getState().pickLocation(event.lngLat.lat, event.lngLat.lng);
       }
@@ -137,8 +197,32 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       userMarkerRef.current = null;
       readyRef.current = false;
     };
-    // map is created once; categories are stable after first successful fetch
+    // map is created once; category assets update independently
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || categories.length === 0) return;
+    let cancelled = false;
+    const addImages = () => {
+      if (cancelled) return;
+      void addCategoryGlyphImages(map, categories)
+        .then(() => {
+          // re-push story data so the point layer resolves its now-registered
+          // pin-<id> glyphs (categories can arrive after the style/layers do)
+          if (!cancelled && readyRef.current) {
+            updateStoryData(map, storiesToGeoJson(storiesRef.current));
+          }
+        })
+        .catch((error) => console.error("map marker setup failed", error));
+    };
+    if (map.isStyleLoaded()) addImages();
+    else map.once("load", addImages);
+    return () => {
+      cancelled = true;
+      map.off("load", addImages);
+    };
   }, [categories]);
 
   useEffect(() => {
@@ -166,46 +250,43 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   }, [mode, pickedLocation]);
 
   useEffect(() => {
-    if (mapRef.current && readyRef.current) setMapLanguage(mapRef.current, locale);
+    if (mapRef.current && readyRef.current) setMapLanguage(mapRef.current, locale, true);
   }, [locale]);
 
   useEffect(() => { categoriesRef.current = categories; }, [categories]);
   useEffect(() => { storiesRef.current = stories; }, [stories]);
   useEffect(() => { clustersRef.current = clusters; }, [clusters]);
 
+  // Toggling clustering means rebuilding the geojson source (its `cluster` flag
+  // is immutable after creation), then re-pushing the current data.
+  useEffect(() => {
+    showAllPinsRef.current = showAllPins;
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    removeStoryLayers(map);
+    addStoryLayers(map, handleStoryClick, !showAllPins);
+    updateStoryData(map, storiesToGeoJson(storiesRef.current));
+    updateServerClusterData(map, clustersToGeoJson(clustersRef.current));
+  }, [showAllPins, handleStoryClick]);
+
+  // Light and dark share the same base style, so a theme swap is a direct paint
+  // mutation — it lands on the same frame as the app's own theme change and
+  // crossfades smoothly, instead of refetching the style (slow, laggy, flashy).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
-    const isDark =
-      theme === "dark" ||
-      (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    const styleUrl = isDark ? MAP_STYLE_DARK_URL : MAP_STYLE_URL;
-    const currentSprite = map.getStyle().sprite?.toString() ?? "";
-    if (currentSprite.includes(isDark ? "dark" : "positron")) return;
-    readyRef.current = false;
-    setMapLoading(true);
-    map.setStyle(styleUrl);
-    map.once("styledata", () => {
-      const cats = categoriesRef.current;
-      addCategoryGlyphImages(map, cats)
-        .then(() => {
-          addStoryLayers(map, (storyId, lat, lon) => {
-            if (useUiStore.getState().mode === "browse") {
-              useUiStore.getState().openStory(storyId);
-              if (lat !== undefined && lon !== undefined)
-                useUiStore.getState().requestPanTo(lat, lon);
-            }
-          });
-          readyRef.current = true;
-          updateStoryData(map, storiesToGeoJson(storiesRef.current));
-          updateServerClusterData(map, clustersToGeoJson(clustersRef.current));
-          setMapLanguage(map, useUiStore.getState().locale);
-          setMapLoading(false);
-        })
-        .catch(console.error);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const isDarkTheme = theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    applyMapTheme(map, isDarkTheme, true);
+    // re-derive label colours (halo/text) for the new theme
+    setMapLabelDensity(map, useUiStore.getState().mapLabelDensity);
   }, [theme]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.isStyleLoaded()) return;
+    setMapLabelDensity(map, mapLabelDensity);
+    requestAnimationFrame(() => setMapLabelDensity(map, mapLabelDensity));
+  }, [mapLabelDensity]);
 
   const panRequest = useUiStore((state) => state.panRequest);
 
@@ -228,13 +309,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   return (
     <div className="absolute inset-0">
       <div ref={containerRef} className="absolute inset-0" data-testid="map" />
-      {/* Instant colour bridge while the tile style reloads. isDark reads
-          matchMedia, so the server always renders the light value — suppress
-          the expected one-attribute hydration diff on dark clients */}
+      {/* Themed cover over the map until its paints are correct, so a dark reload
+          never shows the light base tiles. Fades out once themeReady. isDark
+          reads matchMedia, so the server always renders the light value —
+          suppress the expected one-attribute hydration diff on dark clients */}
       <div
         suppressHydrationWarning
-        className="pointer-events-none absolute inset-0 transition-opacity duration-300"
-        style={{ backgroundColor: isDark ? "#1c1c1e" : "#f8f8f8", opacity: mapLoading ? 1 : 0 }}
+        className="pointer-events-none absolute inset-0 transition-opacity duration-500 ease-out"
+        style={{ backgroundColor: isDark ? "#121416" : "#f8f8f8", opacity: themeReady ? 0 : 1 }}
       />
     </div>
   );

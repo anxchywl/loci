@@ -8,9 +8,9 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "Loci",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [{ url: "/favicon.svg?v=7", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg?v=7",
+    apple: "/favicon.svg?v=7",
   },
 };
 

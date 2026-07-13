@@ -15,7 +15,7 @@ interface PanelProps {
 
 function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex min-h-40 flex-col items-center justify-center gap-2 py-12 text-center animate-fade-in">
+    <div className="flex min-h-full flex-col items-center justify-center gap-2 py-12 text-center animate-fade-in">
       {icon}
       <span className="text-[13px] text-muted">{text}</span>
     </div>

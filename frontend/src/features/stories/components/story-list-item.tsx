@@ -2,7 +2,7 @@
 
 import { Heart } from "lucide-react";
 
-import type { Category, Story } from "@/features/stories/api";
+import { authorLabel, type Category, type Story } from "@/features/stories/api";
 import { categoryIcons } from "@/lib/icons/category-glyphs";
 import { useDict } from "@/lib/i18n/use-dict";
 
@@ -62,7 +62,7 @@ export function StoryListItem({ story, categories, onOpen, showStatus = false }:
           <span className="flex items-center gap-1">
             <Heart size={13} /> {story.reaction_count}
           </span>
-          {story.author && <span>{story.author.username ?? story.author.first_name}</span>}
+          {authorLabel(story.author) && <span>{authorLabel(story.author)}</span>}
         </span>
       </span>
     </button>

@@ -4,6 +4,7 @@ import { Bookmark, Flag, MapPin, Share2, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ReactionButton } from "@/features/stories/components/reaction-button";
+import { authorLabel } from "@/features/stories/api";
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
 import {
   useBookmark,
@@ -137,7 +138,7 @@ export function StorySheet({ authenticated }: StorySheetProps) {
                 {t.categories[category.slug]}
               </span>
             )}
-            {story.author && <span>{story.author.username ?? story.author.first_name}</span>}
+            {authorLabel(story.author) && <span>{authorLabel(story.author)}</span>}
           </div>
 
           {story.photos.length > 0 && (

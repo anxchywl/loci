@@ -17,7 +17,7 @@ export function CategoryChip({ category, selected, onClick }: CategoryChipProps)
     <button
       onClick={onClick}
       aria-pressed={selected}
-      className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors duration-200 ease-lm"
+      className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors duration-200 ease-lm lg:gap-2 lg:px-3.5 lg:py-2 lg:text-[14px]"
       style={
         selected
           ? { backgroundColor: category.color, borderColor: category.color, color: "#ffffff" }

@@ -1,4 +1,4 @@
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 
 export const STORIES_SOURCE = "stories";
 export const SERVER_CLUSTERS_SOURCE = "server-clusters";
@@ -40,14 +40,27 @@ export function storiesToGeoJson(
   };
 }
 
+// zoom-scaled pin size so every pin can stay visible ("all pins" mode) without
+// the map turning into a wall of overlapping full-size markers — small when the
+// whole world is in view, full size at street level.
+const POINT_ICON_SIZE = [
+  "interpolate", ["linear"], ["zoom"],
+  1, 0.46,
+  4, 0.68,
+  8, 0.8,
+  12, 0.9,
+  15, 1.0,
+] as unknown as ExpressionSpecification;
+
 export function addStoryLayers(
   map: MapLibreMap,
   onStoryClick: (storyId: string, lat?: number, lon?: number) => void,
+  cluster = true,
 ): void {
   map.addSource(STORIES_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
-    cluster: true,
+    cluster,
     clusterRadius: 56,
     clusterMaxZoom: 15,
   });
@@ -83,7 +96,7 @@ export function addStoryLayers(
     filter: ["!", ["has", "point_count"]],
     layout: {
       "icon-image": ["concat", "pin-", ["to-string", ["get", "category_id"]]],
-      "icon-size": 0.9,
+      "icon-size": POINT_ICON_SIZE,
       // anchor at the tip so the pin points at the exact coordinate
       "icon-anchor": "bottom",
       "icon-allow-overlap": true,
@@ -162,6 +175,20 @@ export function addStoryLayers(
       map.getCanvas().style.cursor = "";
     });
   }
+}
+
+// Remove the story source and its layers so they can be re-added with a
+// different clustering mode (the geojson source's `cluster` flag is fixed at
+// creation, so switching modes means rebuilding).
+export function removeStoryLayers(map: MapLibreMap): void {
+  for (const layer of [
+    CLUSTER_LAYER, CLUSTER_COUNT_LAYER, POINT_LAYER,
+    SERVER_CLUSTER_LAYER, SERVER_CLUSTER_COUNT_LAYER,
+  ]) {
+    if (map.getLayer(layer)) map.removeLayer(layer);
+  }
+  if (map.getSource(STORIES_SOURCE)) map.removeSource(STORIES_SOURCE);
+  if (map.getSource(SERVER_CLUSTERS_SOURCE)) map.removeSource(SERVER_CLUSTERS_SOURCE);
 }
 
 export function updateStoryData(map: MapLibreMap, data: GeoJSON.FeatureCollection): void {
