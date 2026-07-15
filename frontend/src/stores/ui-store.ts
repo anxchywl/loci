@@ -75,8 +75,7 @@ export const useUiStore = create<UiState>((set) => ({
     set({
       locale: loadPref("loci_locale", defaultLocale) as Locale,
       theme: loadPref("loci_theme", "auto") as Theme,
-      // reopen the story sheet the user was reading before the reload
-      openStoryId: loadPref<string>("loci_open_story", "") || null,
+      openStoryId: null,
     }),
   startPickLocation: () =>
     set({ mode: "pick-location", openStoryId: null, trendingOpen: false }),
@@ -84,11 +83,9 @@ export const useUiStore = create<UiState>((set) => ({
   cancelCompose: () => set({ mode: "browse", pickedLocation: null }),
   finishCompose: () => set({ mode: "browse", pickedLocation: null }),
   openStory: (id) => {
-    try { localStorage.setItem("loci_open_story", id); } catch { /* ignore */ }
     set({ openStoryId: id, trendingOpen: false });
   },
   closeStory: () => {
-    try { localStorage.removeItem("loci_open_story"); } catch { /* ignore */ }
     set({ openStoryId: null });
   },
   setTrendingOpen: (open) => set({ trendingOpen: open }),

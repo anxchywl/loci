@@ -11,6 +11,7 @@
   --lm-accent-text: var(--tg-theme-button-text-color, #ffffff);
   --lm-border: color-mix(in srgb, var(--lm-text) 12%, transparent);
   --lm-focus: color-mix(in srgb, var(--lm-accent) 32%, transparent);
+  --lm-accent-soft: color-mix(in srgb, var(--lm-accent) 55%, var(--lm-muted));
 }
 
 /* browser-only dark fallback */

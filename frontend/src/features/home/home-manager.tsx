@@ -3,6 +3,7 @@
 import {
   Bookmark,
   BookOpen,
+  Check,
   ChevronLeft,
   ChevronRight,
   Flame,
@@ -297,7 +298,7 @@ export function HomeManager() {
                   className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
                 />
                 {searchQuery && (
-                  <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-accent focus-visible:text-accent">
+                  <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-[var(--lm-accent-soft)] focus-visible:text-accent">
                     <X size={16} />
                   </button>
                 )}
@@ -305,7 +306,7 @@ export function HomeManager() {
               <button
                 aria-label={t.menu}
                 onClick={() => setMobileMenuOpen(true)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-bg text-text shadow-sm transition-[color,border-color,transform] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent active:scale-95"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-bg text-text shadow-sm transition-[color,border-color,transform] duration-150 ease-lm hover:border-accent hover:text-[var(--lm-accent-soft)] focus-visible:border-accent focus-visible:text-accent active:scale-95"
               >
                 <Menu size={18} />
               </button>
@@ -346,7 +347,7 @@ export function HomeManager() {
                   className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
                 />
                 {searchQuery && (
-                  <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-accent focus-visible:text-accent">
+                  <button aria-label={t.cancel} onClick={() => setSearchQuery("")} className="rounded text-muted transition-colors hover:text-[var(--lm-accent-soft)] focus-visible:text-accent">
                     <X size={16} />
                   </button>
                 )}
@@ -390,7 +391,7 @@ export function HomeManager() {
         <>
           <div className="absolute bottom-6 left-4 z-10 flex flex-col items-center gap-3 lg:hidden">
             <button aria-label={t.trending} onClick={() => setTrendingOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95">
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-[var(--lm-accent-soft)] focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95">
               <Flame size={18} />
             </button>
             <button
@@ -432,7 +433,7 @@ export function HomeManager() {
             onClick={locateMe}
             disabled={locating}
             style={{ bottom: locateBottom }}
-            className="absolute right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 disabled:opacity-50 lg:h-10 lg:w-10"
+            className="absolute right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,transform,box-shadow] duration-150 ease-lm hover:border-accent hover:text-[var(--lm-accent-soft)] focus-visible:border-accent focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-[var(--lm-focus)] active:scale-95 disabled:opacity-50 lg:h-10 lg:w-10"
           >
             <Navigation size={16} className={locating ? "animate-pulse" : undefined} />
           </button>
@@ -442,12 +443,12 @@ export function HomeManager() {
             className="absolute right-3 bottom-[calc(1.5rem+36px+8px)] z-10 flex flex-col overflow-hidden rounded-lg border border-border bg-bg shadow-sm lg:bottom-[calc(1.5rem+48px)]"
           >
             <button aria-label="Zoom in" onClick={() => mapViewRef.current?.zoomIn()}
-              className="flex h-7 w-8 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface lg:h-[38px] lg:w-10 lg:text-[20px]">
+              className="flex h-7 w-8 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-[var(--lm-accent-soft)] focus-visible:bg-surface focus-visible:text-accent active:bg-surface lg:h-[38px] lg:w-10 lg:text-[20px]">
               +
             </button>
             <div className="h-px bg-border" />
             <button aria-label="Zoom out" onClick={() => mapViewRef.current?.zoomOut()}
-              className="flex h-7 w-8 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-accent focus-visible:bg-surface focus-visible:text-accent active:bg-surface lg:h-[38px] lg:w-10 lg:text-[20px]">
+              className="flex h-7 w-8 items-center justify-center text-[18px] leading-none text-text transition-colors hover:bg-surface hover:text-[var(--lm-accent-soft)] focus-visible:bg-surface focus-visible:text-accent active:bg-surface lg:h-[38px] lg:w-10 lg:text-[20px]">
               −
             </button>
           </div>
@@ -459,7 +460,7 @@ export function HomeManager() {
               aria-expanded={mapViewOpen}
               title={t.mapView}
               onClick={() => setMapViewOpen(!mapViewOpen)}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,background-color,transform] duration-150 ease-lm hover:border-accent hover:text-accent active:scale-95 lg:h-10 lg:w-10"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-bg text-muted shadow-sm transition-[color,border-color,background-color,transform] duration-150 ease-lm hover:border-accent hover:text-[var(--lm-accent-soft)] active:scale-95 lg:h-10 lg:w-10"
             >
               <Layers size={18} />
             </button>
@@ -467,17 +468,17 @@ export function HomeManager() {
               <div className="absolute bottom-12 right-0 w-56 rounded-xl border border-border bg-bg p-2 shadow-lg motion-safe:animate-story-state">
                 <div className="px-2 pb-1 text-[12px] font-semibold text-muted">{t.mapView}</div>
                 <div className="space-y-1">
-                  <button onClick={() => setShowAllPins(true)} className={["flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[13px]", showAllPins ? "bg-surface font-medium" : "hover:bg-surface"].join(" ")}>
-                    <span>{t.showAllPins}</span>{showAllPins && <span aria-hidden="true">✓</span>}
+                  <button onClick={() => setShowAllPins(true)} className={["w-full rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-150", showAllPins ? "font-semibold text-accent" : "font-medium text-muted hover:text-[var(--lm-accent-soft)]"].join(" ")}>
+                    {t.showAllPins}
                   </button>
-                  <button onClick={() => setShowAllPins(false)} className={["flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[13px]", !showAllPins ? "bg-surface font-medium" : "hover:bg-surface"].join(" ")}>
-                    <span>{t.showClusters}</span>{!showAllPins && <span aria-hidden="true">✓</span>}
+                  <button onClick={() => setShowAllPins(false)} className={["w-full rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-150", !showAllPins ? "font-semibold text-accent" : "font-medium text-muted hover:text-[var(--lm-accent-soft)]"].join(" ")}>
+                    {t.showClusters}
                   </button>
                 </div>
                 <div className="mt-2 border-t border-border px-2 pt-2 text-[12px] font-semibold text-muted">{t.mapLabels}</div>
                 {([["none", t.mapNone], ["countries", t.mapCountries], ["all", t.mapAllDetails]] as const).map(([value, label]) => (
-                  <button key={value} onClick={() => { setMapLabelDensity(value); mapViewRef.current?.setLabelDensity(value); }} className="w-full rounded-lg px-2 py-2 text-left text-[13px] hover:bg-surface">
-                    {label} {mapLabelDensity === value ? "✓" : ""}
+                  <button key={value} onClick={() => { setMapLabelDensity(value); mapViewRef.current?.setLabelDensity(value); }} className={["w-full rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-150", mapLabelDensity === value ? "font-semibold text-accent" : "font-medium text-muted hover:text-[var(--lm-accent-soft)]"].join(" ")}>
+                    {label}
                   </button>
                 ))}
               </div>
@@ -503,6 +504,7 @@ export function HomeManager() {
         <BottomSheet
           open={mobileMenuOpen}
           onClose={closeMobileMenu}
+          scrollKey={mobileDoc}
           onBack={(mobileDoc || mobilePanel) ? () => {
             runSheetTransition(() => {
               if (mobileDoc) setMobileDoc(null);
@@ -529,10 +531,10 @@ export function HomeManager() {
                   onClick={() => openMobilePanel(item.panel)}
                   className="group flex w-full items-center gap-3 rounded-lg px-1 py-2.5 text-left text-[14px] font-medium text-text transition-colors duration-150 active:scale-[0.99]"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center text-muted transition-colors group-hover:text-accent">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center text-muted transition-colors group-hover:text-[var(--lm-accent-soft)]">
                     {item.icon}
                   </span>
-                  <span className="min-w-0 flex-1 transition-colors group-hover:text-accent">{item.label}</span>
+                  <span className="min-w-0 flex-1 transition-colors group-hover:text-[var(--lm-accent-soft)]">{item.label}</span>
                 </button>
               ))}
             </div>
@@ -561,7 +563,10 @@ export function HomeManager() {
                     <div className="py-8 text-center text-[13px] text-muted">{t.loading}</div>
                   )}
                   {nearbyLocation && nearbyStories.length === 0 && (
-                    <div className="py-8 text-center text-[13px] text-muted">{t.noNearby}</div>
+                    <div className="flex min-h-[30dvh] flex-col items-center justify-center gap-2 py-8 text-center">
+                      <MapPin size={22} className="text-muted" />
+                      <span className="text-[13px] text-muted">{t.noNearby}</span>
+                    </div>
                   )}
                   {nearbyLocation && nearbyStories.map((story) => (
                     <StoryListItem key={story.id} story={story} categories={categories}

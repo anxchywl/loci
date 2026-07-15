@@ -413,7 +413,7 @@ export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 py-6 text-center">
           <MapPinned size={22} className="text-muted" />
           <span className="text-[13px] text-muted">{t.openInTelegram}</span>
           {botUsername && (
@@ -488,7 +488,6 @@ export function AboutPanel({ onOpenDoc }: { onOpenDoc: (id: LegalDocId) => void 
 
   return (
     <div className="px-4 py-4">
-      <p className="mb-5 text-[15px] font-medium text-muted">{t.aboutTagline}</p>
       <div className="space-y-5">
         {sections.map(({ title, body }) => (
           <div key={title}>

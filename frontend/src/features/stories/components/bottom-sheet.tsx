@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 interface BottomSheetProps {
   open: boolean;
@@ -9,6 +9,7 @@ interface BottomSheetProps {
   onBack?: () => void;
   title?: string;
   isEditing?: boolean;
+  scrollKey?: string | null;
   children: ReactNode;
 }
 
@@ -18,9 +19,17 @@ export function BottomSheet({
   onBack,
   title,
   isEditing = false,
+  scrollKey,
   children,
 }: BottomSheetProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [startY, setStartY] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (scrollKey !== undefined) {
+      scrollRef.current?.scrollTo({ top: 0 });
+    }
+  }, [scrollKey]);
   const [dragY, setDragY] = useState(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -53,6 +62,7 @@ export function BottomSheet({
         onClick={onClose}
       />
       <div
+        ref={scrollRef}
         className={`absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-sheet bg-bg pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] motion-safe:animate-sheet-up transition-[transform,max-height] duration-250 ease-lm ${isEditing ? "keyboard-sheet-editing" : ""}`}
         style={dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined}
       >
