@@ -80,7 +80,7 @@ async def _optimize_with_engine(engine, photo_id: uuid.UUID) -> str:
             storage.put_object_bytes(full_key, full_bytes, "image/webp")
             storage.put_object_bytes(thumb_key, thumb_bytes, "image/webp")
 
-            await photos_repo.mark_ready(
+            photo_exists = await photos_repo.mark_ready(
                 db,
                 photo_id,
                 object_key=full_key,
@@ -89,6 +89,12 @@ async def _optimize_with_engine(engine, photo_id: uuid.UUID) -> str:
                 height=height,
                 content_type="image/webp",
             )
+            if not photo_exists:
+                storage.delete_object(full_key)
+                storage.delete_object(thumb_key)
+                storage.delete_object(source_key)
+                await db.rollback()
+                return "success"
             await db.commit()
             try:
                 storage.delete_object(source_key)

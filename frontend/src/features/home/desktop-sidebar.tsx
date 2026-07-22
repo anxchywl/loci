@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  ArrowLeft,
   ArrowUpRight,
   Bookmark,
   BookOpen,
   ChevronLeft,
+  ChevronRight,
   FileText,
   Flame,
   Flag,
@@ -37,10 +39,12 @@ import {
   useCategories,
   useBboxStories,
   useDeleteStory,
+  useDeleteStoryPhoto,
   useReportStory,
   useStory,
   useTrending,
 } from "@/features/stories/hooks";
+import { circularNeighbors } from "@/features/stories/proximity";
 import { AppIcon } from "@/components/app-icon";
 import { categoryIcons } from "@/lib/icons/category-glyphs";
 import { type Locale, locales } from "@/lib/i18n/dict";
@@ -147,6 +151,11 @@ function NearbyPanel({ location, authenticated, onOpen }: {
   );
 }
 
+function formatDate(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : value;
+}
+
 function StoryPanel({
   storyId,
   authenticated,
@@ -158,7 +167,13 @@ function StoryPanel({
 }) {
   const t = useDict();
   const showToast = useUiStore((state) => state.showToast);
+  const openAdjacentStory = useUiStore((s) => s.openAdjacentStory);
+  const goBackStory = useUiStore((s) => s.goBackStory);
+  const storyHistory = useUiStore((s) => s.storyHistory);
+  const adjacentPins = useUiStore((s) => s.adjacentPins);
+  const requestPanTo = useUiStore((s) => s.requestPanTo);
   const { data: story } = useStory(storyId);
+  const deletePhoto = useDeleteStoryPhoto(storyId);
   const { data: categories } = useCategories();
   const bookmark = useBookmark(storyId);
   const report = useReportStory(storyId);
@@ -168,6 +183,22 @@ function StoryPanel({
   useEffect(() => {
     setConfirming(null);
   }, [storyId]);
+
+  const { prev: prevPin, next: nextPin } = circularNeighbors(adjacentPins, storyId);
+
+  const goTo = (pin: { id: string; lat: number; lon: number }) => {
+    openAdjacentStory(pin.id, { lat: pin.lat, lon: pin.lon });
+    requestPanTo(pin.lat, pin.lon);
+  };
+
+  const handleBack = () => {
+    const prevId = storyHistory[storyHistory.length - 1];
+    goBackStory();
+    const coords =
+      useUiStore.getState().storyCoords[prevId] ??
+      adjacentPins.find((p) => p.id === prevId);
+    if (coords) requestPanTo(coords.lat, coords.lon);
+  };
 
   const category = categories?.find((c) => c.id === story?.category_id);
   const Icon = category ? categoryIcons[category.slug] : null;
@@ -207,6 +238,35 @@ function StoryPanel({
       key={confirming ?? "story"}
       className="space-y-4 px-4 py-3 motion-safe:animate-story-state"
     >
+      {!confirming && (prevPin || nextPin || storyHistory.length > 0) && (
+        <div className="flex items-center gap-1">
+          {storyHistory.length > 0 && (
+            <button
+              aria-label={t.backToPreviousStory}
+              onClick={handleBack}
+              className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:text-accent focus-visible:text-accent"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <button
+            aria-label={t.previousStory}
+            onClick={prevPin ? () => goTo(prevPin) : undefined}
+            disabled={!prevPin}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent disabled:opacity-30"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <button
+            aria-label={t.nextStory}
+            onClick={nextPin ? () => goTo(nextPin) : undefined}
+            disabled={!nextPin}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent disabled:opacity-30"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
         {category && Icon && (
           <span className="flex items-center gap-1 rounded-full px-2.5 py-1 font-medium text-white"
@@ -216,22 +276,40 @@ function StoryPanel({
           </span>
         )}
         <span>{story.author ? (story.author.username ? `@${story.author.username}` : story.author.first_name) : t.anonymous}</span>
-        {story.happened_on && <span>{story.happened_on}</span>}
-        <span className="flex items-center gap-0.5">
-          <MapPin size={13} />
-          {story.location_precision === "approx" ? "≈" : ""}
-          {story.lat.toFixed(3)}, {story.lon.toFixed(3)}
-        </span>
       </div>
 
       {story.photos.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto">
-          {story.photos.map((photo) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={photo.id} src={photo.thumb_url ?? photo.url} alt=""
-              className="h-36 rounded-lg object-cover" />
-          ))}
-        </div>
+        story.photos.length === 1 ? (
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={story.photos[0].thumb_url ?? story.photos[0].url} alt=""
+              className="h-48 w-full rounded-lg object-cover" />
+            {story.viewer_is_owner && (
+              <button type="button" aria-label={t.deletePhoto} disabled={deletePhoto.isPending}
+                onClick={() => { if (window.confirm(t.deletePhoto)) deletePhoto.mutate(story.photos[0].id); }}
+                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50">
+                <Trash2 size={17} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto">
+            {story.photos.map((photo) => (
+              <div key={photo.id} className="relative shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.thumb_url ?? photo.url} alt=""
+                  className="h-36 w-28 rounded-lg object-cover" />
+                {story.viewer_is_owner && (
+                  <button type="button" aria-label={t.deletePhoto} disabled={deletePhoto.isPending}
+                    onClick={() => { if (window.confirm(t.deletePhoto)) deletePhoto.mutate(photo.id); }}
+                    className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50">
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{story.body}</p>
@@ -287,6 +365,15 @@ function StoryPanel({
           </div>
         </div>
       )}
+
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-3 text-[13px] text-muted">
+        <span className="flex items-center gap-1">
+          <MapPin size={13} />
+          {story.location_precision === "approx" ? "≈" : ""}
+          {story.lat.toFixed(3)}, {story.lon.toFixed(3)}
+        </span>
+        {story.happened_on && <span>{formatDate(story.happened_on)}</span>}
+      </div>
     </div>
   );
 }
@@ -321,9 +408,10 @@ export function SettingsPanel() {
   };
 
   const localeLabels: Record<Locale, string> = { en: "English", kk: "Қазақша", ru: "Русский" };
+  const localeOrder: Locale[] = ["kk", "en", "ru"];
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: "auto", label: t.themeAuto, icon: <SunMoon size={14} /> },
     { value: "light", label: t.themeLight, icon: <Sun size={14} /> },
+    { value: "auto", label: t.themeAuto, icon: <SunMoon size={14} /> },
     { value: "dark", label: t.themeDark, icon: <Moon size={14} /> },
   ];
 
@@ -334,7 +422,7 @@ export function SettingsPanel() {
           <Globe size={12} /> {t.languageLabel}
         </div>
         <div className="flex gap-1.5">
-          {locales.map((l) => (
+          {localeOrder.map((l) => (
             <button key={l} onClick={() => handleLocale(l)}
               className={[
                 "min-w-0 flex-1 rounded-lg px-1 py-1.5 text-center text-[12px] font-medium leading-tight transition-colors",
@@ -416,16 +504,14 @@ export function ProfilePanel({ onSettingsClick }: { onSettingsClick?: () => void
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 py-6 text-center">
           <MapPinned size={22} className="text-muted" />
           <span className="text-[13px] text-muted">{t.openInTelegram}</span>
-          {botUsername && (
-            <a
-              href={`https://t.me/${botUsername}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[13px] font-semibold text-accent transition-colors hover:underline"
-            >
-              @{botUsername}
-            </a>
-          )}
+          <a
+            href={`https://t.me/${botUsername ?? "loci_app_bot"}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[13px] font-semibold text-accent transition-colors hover:underline"
+          >
+            @{botUsername ?? "loci_app_bot"}
+          </a>
           {onSettingsClick && (
             <button
               onClick={onSettingsClick}
@@ -555,7 +641,7 @@ export function DesktopSidebar({
   };
 
   const handleStoryOpen = (id: string, lat: number, lon: number) => {
-    openStory(id);
+    openStory(id, { lat, lon });
     requestPanTo(lat, lon);
     onSetActivePanel("story");
   };

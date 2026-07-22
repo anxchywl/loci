@@ -12,6 +12,7 @@ import {
   storiesToGeoJson,
   updateServerClusterData,
   updateStoryData,
+  setSelectedStory,
 } from "@/lib/map/story-layers";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -54,6 +55,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const theme = useUiStore((state) => state.theme);
   const mapLabelDensity = useUiStore((state) => state.mapLabelDensity);
   const showAllPins = useUiStore((state) => state.showAllPins);
+  const openStoryId = useUiStore((state) => state.openStoryId);
   const categoriesRef = useRef(categories);
   const storiesRef = useRef(stories);
   const clustersRef = useRef(clusters);
@@ -67,9 +69,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const handleStoryClick = useCallback(
     (storyId: string, lat?: number, lon?: number) => {
       if (useUiStore.getState().mode !== "browse") return;
-      useUiStore.getState().openStory(storyId);
-      if (lat !== undefined && lon !== undefined) {
-        useUiStore.getState().requestPanTo(lat, lon);
+      const coords = lat !== undefined && lon !== undefined ? { lat, lon } : undefined;
+      useUiStore.getState().openStory(storyId, coords);
+      if (coords) {
+        const isMobile = !window.matchMedia("(min-width: 1024px)").matches;
+        const padding = isMobile ? Math.round(window.innerHeight * 0.6) : undefined;
+        useUiStore.getState().requestPanTo(coords.lat, coords.lon, undefined, padding);
       }
     },
     [],
@@ -189,6 +194,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           addStoryLayers(map, handleStoryClick, !showAllPinsRef.current);
           readyRef.current = true;
           updateStoryData(map, storiesToGeoJson(stories));
+          setSelectedStory(map, useUiStore.getState().openStoryId);
           updateServerClusterData(map, clustersToGeoJson(clustersRef.current));
           setMapLanguage(map, locale);
           emitBounds();
@@ -256,6 +262,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   }, [stories]);
 
   useEffect(() => {
+    if (mapRef.current && readyRef.current) setSelectedStory(mapRef.current, openStoryId);
+  }, [openStoryId]);
+
+  useEffect(() => {
     if (mapRef.current && readyRef.current) {
       updateServerClusterData(mapRef.current, clustersToGeoJson(clusters));
     }
@@ -291,6 +301,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     addStoryLayers(map, handleStoryClick, !showAllPins);
     updateStoryData(map, storiesToGeoJson(storiesRef.current));
     updateServerClusterData(map, clustersToGeoJson(clustersRef.current));
+    setSelectedStory(map, useUiStore.getState().openStoryId);
   }, [showAllPins, handleStoryClick]);
 
   // Light and dark share the same base style, so a theme swap is a direct paint
@@ -316,13 +327,38 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => {
     if (mapRef.current && panRequest) {
+      // maplibre easeTo keys on `'padding' in options`, not a null check, so the
+      // padding key must be omitted entirely when absent — passing
+      // `padding: undefined` makes it read `undefined.top` and throw
       mapRef.current.easeTo({
         center: [panRequest.lon, panRequest.lat],
         zoom: panRequest.zoom ?? mapRef.current.getZoom(),
+        ...(panRequest.paddingBottom !== undefined ||
+        (openStoryId !== null && window.matchMedia("(min-width: 1024px)").matches)
+          ? {
+              padding: {
+                top: window.matchMedia("(min-width: 1024px)").matches
+                  ? 0
+                  : document.querySelector<HTMLElement>("[data-map-controls]")?.getBoundingClientRect().bottom ?? 0,
+                right: 0,
+                bottom: panRequest.paddingBottom ?? 0,
+                left: 0,
+              },
+            }
+          : {}),
         duration: 500,
+        // essential so stepping through stories always eases smoothly; without
+        // it maplibre collapses the animation to an instant jump under
+        // prefers-reduced-motion (common in the iOS simulator)
+        essential: true,
       });
     }
-  }, [panRequest]);
+  }, [openStoryId, panRequest]);
+
+  useEffect(() => {
+    if (!mapRef.current || openStoryId) return;
+    mapRef.current.easeTo({ padding: { top: 0, right: 0, bottom: 0, left: 0 }, duration: 250, essential: true });
+  }, [openStoryId]);
 
   const isDark =
     theme === "dark" ||

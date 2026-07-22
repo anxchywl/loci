@@ -12,11 +12,13 @@ import {
   addReaction,
   createStory,
   deleteStory,
+  deleteStoryPhoto,
   fetchBboxStories,
   fetchCategories,
   fetchComments,
   fetchMapClusters,
   fetchMapPins,
+  fetchWorldMapPins,
   fetchStory,
   fetchTrending,
   postComment,
@@ -33,17 +35,18 @@ import {
   type Story,
   type UpdateStoryInput,
 } from "@/features/stories/api";
+import { cachePolicy, queryKeys } from "@/lib/query/cache-policy";
 
 export function useCategories() {
-  return useQuery({ queryKey: ["categories"], queryFn: fetchCategories, staleTime: Infinity });
+  return useQuery({ queryKey: queryKeys.categories, queryFn: fetchCategories, ...cachePolicy.categories });
 }
 
 export function useBboxStories(params: BboxParams | null) {
   return useQuery({
-    queryKey: ["stories", "bbox", params],
+    queryKey: params ? queryKeys.stories.bbox(params) : ["stories", "bbox", null],
     queryFn: ({ signal }) => fetchBboxStories(params!, signal),
     enabled: params !== null,
-    placeholderData: (previous) => previous,
+    ...cachePolicy.discovery,
   });
 }
 
@@ -78,10 +81,20 @@ export function useMapPins(params: BboxParams | null) {
   return useQuery({
     // quantized bounds make consecutive small pans hit the cache instead of the
     // network; the abort signal cancels superseded requests during fast panning
-    queryKey: ["stories", "map", quantized],
+    queryKey: quantized ? queryKeys.stories.map(quantized) : ["stories", "map", null],
     queryFn: ({ signal }) => fetchMapPins(quantized!, signal),
     enabled: quantized !== null,
-    staleTime: 30_000,
+    ...cachePolicy.map,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useWorldMapPins(enabled: boolean, categoryId: number | null) {
+  return useQuery({
+    queryKey: queryKeys.stories.worldMap(categoryId),
+    queryFn: ({ signal }) => fetchWorldMapPins(categoryId, signal),
+    enabled,
+    ...cachePolicy.map,
     placeholderData: (previous) => previous,
   });
 }
@@ -89,17 +102,17 @@ export function useMapPins(params: BboxParams | null) {
 export function useMapClusters(params: ClusterParams | null) {
   const quantized = params && { ...quantizeBounds(params), zoom: Math.round(params.zoom) };
   return useQuery({
-    queryKey: ["stories", "map-clusters", quantized],
+    queryKey: quantized ? queryKeys.stories.clusters(quantized) : ["stories", "map-clusters", null],
     queryFn: ({ signal }) => fetchMapClusters(quantized!, signal),
     enabled: quantized !== null,
     // server-side cache is 60s; matching staleTime avoids pointless refetches
-    staleTime: 60_000,
+    ...cachePolicy.clusters,
     placeholderData: (previous) => previous,
   });
 }
 
 export function useTrending(enabled: boolean) {
-  return useQuery({ queryKey: ["stories", "trending"], queryFn: fetchTrending, enabled });
+  return useQuery({ queryKey: queryKeys.stories.trending, queryFn: fetchTrending, enabled, ...cachePolicy.discovery });
 }
 
 export function useSearch(query: string) {
@@ -108,16 +121,16 @@ export function useSearch(query: string) {
   // "foo " and "foo" as one cached query and never sends an over-length value.
   const normalized = query.trim().replace(/\s+/g, " ").slice(0, 100);
   return useQuery({
-    queryKey: ["stories", "search", normalized],
+    queryKey: queryKeys.stories.search(normalized),
     queryFn: ({ signal }) => searchStories(normalized, signal),
     enabled: normalized.length >= 2,
-    placeholderData: (previous) => previous,
+    ...cachePolicy.discovery,
   });
 }
 
 export function useStory(id: string | null) {
   return useQuery({
-    queryKey: ["story", id],
+    queryKey: id ? queryKeys.story(id) : ["story", null],
     queryFn: () => fetchStory(id!),
     enabled: id !== null,
   });
@@ -125,8 +138,9 @@ export function useStory(id: string | null) {
 
 export function useComments(storyId: string | null) {
   return useQuery({
-    queryKey: ["comments", storyId],
+    queryKey: storyId ? queryKeys.comments(storyId) : ["comments", null],
     queryFn: () => fetchComments(storyId!),
+    ...cachePolicy.comments,
     enabled: storyId !== null,
   });
 }
@@ -149,9 +163,10 @@ export function useCreateStory() {
       return { story, photoUploadFailed };
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["stories"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stories.root });
       // a new story shows up in My Stories (as pending) right away
-      void queryClient.invalidateQueries({ queryKey: ["profile", "stories"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.stories });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.root });
     },
   });
 }
@@ -178,9 +193,35 @@ export function useDeleteStory() {
       // drop the detail cache and refresh the map + both profile lists so a
       // deleted story can't linger anywhere or leave an orphaned view
       queryClient.removeQueries({ queryKey: ["story", storyId] });
-      void queryClient.invalidateQueries({ queryKey: ["stories"] });
-      void queryClient.invalidateQueries({ queryKey: ["profile", "stories"] });
-      void queryClient.invalidateQueries({ queryKey: ["profile", "bookmarks"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stories.root });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.root });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stories.trending });
+    },
+  });
+}
+
+export function useDeleteStoryPhoto(storyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (photoId: string) => deleteStoryPhoto(storyId, photoId),
+    onMutate: async (photoId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.story(storyId) });
+      const previous = queryClient.getQueryData<Story>(queryKeys.story(storyId));
+      if (previous) {
+        queryClient.setQueryData<Story>(queryKeys.story(storyId), {
+          ...previous,
+          photos: previous.photos.filter((photo) => photo.id !== photoId),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _photoId, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKeys.story(storyId), context.previous);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.story(storyId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.stories });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin });
     },
   });
 }
@@ -192,8 +233,9 @@ export function useUpdateStory() {
       updateStory(id, input),
     onSuccess: (story) => {
       queryClient.setQueryData(["story", story.id], story);
-      void queryClient.invalidateQueries({ queryKey: ["stories"] });
-      void queryClient.invalidateQueries({ queryKey: ["profile", "stories"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stories.root });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.root });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stories.trending });
     },
   });
 }
@@ -204,7 +246,8 @@ export function useResubmitStory() {
     mutationFn: resubmitStory,
     onSuccess: (story) => {
       queryClient.setQueryData(["story", story.id], story);
-      void queryClient.invalidateQueries({ queryKey: ["profile", "stories"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.stories });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stories.root });
     },
   });
 }
@@ -220,22 +263,63 @@ function patchStory(
   return { key, previous };
 }
 
+function patchCachedStoryLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  storyId: string,
+  patch: (story: Story) => Story,
+): void {
+  for (const [key, stories] of queryClient.getQueriesData<Story[]>({ queryKey: queryKeys.stories.root })) {
+    if (stories) queryClient.setQueryData(key, stories.map((story) => story.id === storyId ? patch(story) : story));
+  }
+  for (const [key, stories] of queryClient.getQueriesData<Story[]>({ queryKey: queryKeys.profile.root })) {
+    if (stories) queryClient.setQueryData(key, stories.map((story) => story.id === storyId ? patch(story) : story));
+  }
+}
+
+type StoryMutationContext = {
+  detail: { key: QueryKey; previous: Story | undefined };
+  lists: Array<[QueryKey, Story[] | undefined]>;
+};
+
+function patchStoryAndLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  storyId: string,
+  patch: (story: Story) => Story,
+): StoryMutationContext {
+  const lists = [
+    ...queryClient.getQueriesData<Story[]>({ queryKey: queryKeys.stories.root }),
+    ...queryClient.getQueriesData<Story[]>({ queryKey: queryKeys.profile.root }),
+  ];
+  const detail = patchStory(queryClient, storyId, patch);
+  patchCachedStoryLists(queryClient, storyId, patch);
+  return { detail, lists };
+}
+
+function rollbackStoryMutation(
+  queryClient: ReturnType<typeof useQueryClient>,
+  context: StoryMutationContext | undefined,
+): void {
+  if (!context) return;
+  queryClient.setQueryData(context.detail.key, context.detail.previous);
+  context.lists.forEach(([key, stories]) => queryClient.setQueryData(key, stories));
+}
+
 export function useReaction(storyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (reacted: boolean) =>
       reacted ? removeReaction(storyId) : addReaction(storyId),
-    onMutate: (reacted: boolean) =>
-      patchStory(queryClient, storyId, (story) => ({
+    onMutate: (reacted: boolean) => {
+      const patch = (story: Story) => ({
         ...story,
         viewer_reacted: !reacted,
         reaction_count: story.reaction_count + (reacted ? -1 : 1),
-      })),
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(context.key, context.previous);
+      });
+      return patchStoryAndLists(queryClient, storyId, patch);
     },
+    onError: (_error, _variables, context) => rollbackStoryMutation(queryClient, context),
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["story", storyId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.story(storyId) });
     },
   });
 }
@@ -245,19 +329,19 @@ export function useBookmark(storyId: string) {
   return useMutation({
     mutationFn: (bookmarked: boolean) =>
       bookmarked ? removeBookmark(storyId) : addBookmark(storyId),
-    onMutate: (bookmarked: boolean) =>
-      patchStory(queryClient, storyId, (story) => ({
+    onMutate: (bookmarked: boolean) => {
+      const patch = (story: Story) => ({
         ...story,
         viewer_bookmarked: !bookmarked,
-      })),
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(context.key, context.previous);
+      });
+      return patchStoryAndLists(queryClient, storyId, patch);
     },
+    onError: (_error, _variables, context) => rollbackStoryMutation(queryClient, context),
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["story", storyId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.story(storyId) });
       // keep the Saved tab in sync so an unsave disappears immediately and a
       // save shows up without a manual refresh
-      void queryClient.invalidateQueries({ queryKey: ["profile", "bookmarks"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.bookmarks });
     },
   });
 }
@@ -267,8 +351,8 @@ export function usePostComment(storyId: string) {
   return useMutation({
     mutationFn: (body: string) => postComment(storyId, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["comments", storyId] });
-      void queryClient.invalidateQueries({ queryKey: ["story", storyId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.comments(storyId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.story(storyId) });
     },
   });
 }

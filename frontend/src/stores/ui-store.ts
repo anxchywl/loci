@@ -8,12 +8,35 @@ export type Theme = "auto" | "light" | "dark";
 export type MapLabelDensity = "none" | "countries" | "all";
 export type MapStyle = "clean" | "bright" | "dark";
 
+export interface AdjacentPin {
+  id: string;
+  lat: number;
+  lon: number;
+}
+
 interface UiState {
   locale: Locale;
   theme: Theme;
   mode: HomeMode;
   pickedLocation: { lat: number; lon: number } | null;
   openStoryId: string | null;
+  // browsing history: stories opened before the current one, in visit order.
+  // Drives the "back" control (return to the previously viewed story). Distinct
+  // from adjacentPins, which is geographic and has nothing to do with history.
+  storyHistory: string[];
+  // geographic neighbours ordered nearest-first around navAnchor. Drives
+  // prev/next (move to the adjacent nearby story). Rebuilt from the visible pins
+  // by the home manager; never a history stack.
+  adjacentPins: AdjacentPin[];
+  // fixed reference point for the proximity tour: the location of the story the
+  // user first opened. Held constant across prev/next hops so the tour walks
+  // steadily outward (nearest → farther) instead of re-centring on each story.
+  // Reset on a fresh open/close; preserved by openAdjacentStory.
+  navAnchor: { lat: number; lon: number } | null;
+  // last-known public coords per story id, remembered as stories are opened so
+  // "back" can restore the map position of a history entry even after the pin
+  // set has changed. Public (fuzzed) coords only — same values already shown.
+  storyCoords: Record<string, { lat: number; lon: number }>;
   trendingOpen: boolean;
   categoryFilter: number | null;
   // "clustered" groups nearby pins into counted circles; "all" keeps every pin
@@ -23,15 +46,20 @@ interface UiState {
   mapStyle: MapStyle;
   mapViewOpen: boolean;
   toast: string | null;
-  panRequest: { lat: number; lon: number; zoom?: number; id: number } | null;
+  panRequest: { lat: number; lon: number; zoom?: number; paddingBottom?: number; id: number } | null;
   setLocale: (locale: Locale) => void;
   setTheme: (theme: Theme) => void;
   startPickLocation: () => void;
   pickLocation: (lat: number, lon: number) => void;
   cancelCompose: () => void;
   finishCompose: () => void;
-  openStory: (id: string) => void;
+  openStory: (id: string, coords?: { lat: number; lon: number }) => void;
+  // open a story reached via prev/next: advances the open story and history but
+  // keeps the proximity anchor + tour, so ordering stays fixed on the first story
+  openAdjacentStory: (id: string, coords: { lat: number; lon: number }) => void;
   closeStory: () => void;
+  goBackStory: () => void;
+  setNavAnchor: (anchor: { lat: number; lon: number }) => void;
   setTrendingOpen: (open: boolean) => void;
   setCategoryFilter: (id: number | null) => void;
   hydrateShowAllPins: () => void;
@@ -39,10 +67,11 @@ interface UiState {
   setShowAllPins: (show: boolean) => void;
   setMapLabelDensity: (density: MapLabelDensity) => void;
   setMapStyle: (style: MapStyle) => void;
+  setAdjacentPins: (pins: AdjacentPin[]) => void;
   setMapViewOpen: (open: boolean) => void;
   showToast: (message: string) => void;
   clearToast: () => void;
-  requestPanTo: (lat: number, lon: number, zoom?: number) => void;
+  requestPanTo: (lat: number, lon: number, zoom?: number, paddingBottom?: number) => void;
   hydratePreferences: () => void;
 }
 
@@ -59,11 +88,15 @@ export const useUiStore = create<UiState>((set) => ({
   mode: "browse",
   pickedLocation: null,
   openStoryId: null,
+  storyHistory: [],
+  adjacentPins: [],
+  navAnchor: null,
+  storyCoords: {},
   trendingOpen: false,
   categoryFilter: null,
   // starts false on server AND first client render to avoid a hydration
   // mismatch; the persisted value is applied after mount via hydrateShowAllPins()
-  showAllPins: false,
+  showAllPins: true,
   mapLabelDensity: "all",
   mapStyle: "clean",
   mapViewOpen: false,
@@ -76,22 +109,54 @@ export const useUiStore = create<UiState>((set) => ({
       locale: loadPref("loci_locale", defaultLocale) as Locale,
       theme: loadPref("loci_theme", "auto") as Theme,
       openStoryId: null,
+      storyHistory: [],
+      navAnchor: null,
+      adjacentPins: [],
     }),
   startPickLocation: () =>
-    set({ mode: "pick-location", openStoryId: null, trendingOpen: false }),
+    set({ mode: "pick-location", openStoryId: null, trendingOpen: false, storyHistory: [], navAnchor: null, adjacentPins: [] }),
   pickLocation: (lat, lon) => set({ mode: "compose", pickedLocation: { lat, lon } }),
   cancelCompose: () => set({ mode: "browse", pickedLocation: null }),
   finishCompose: () => set({ mode: "browse", pickedLocation: null }),
-  openStory: (id) => {
-    set({ openStoryId: id, trendingOpen: false });
-  },
-  closeStory: () => {
-    set({ openStoryId: null });
-  },
+  setAdjacentPins: (pins) => set({ adjacentPins: pins }),
+  openStory: (id, coords) =>
+    set((state) => ({
+      openStoryId: id,
+      trendingOpen: false,
+      // push current story onto history stack before switching
+      storyHistory: state.openStoryId && state.openStoryId !== id
+        ? [...state.storyHistory, state.openStoryId]
+        : state.storyHistory,
+      storyCoords: coords ? { ...state.storyCoords, [id]: coords } : state.storyCoords,
+      // fresh open re-anchors the proximity tour here and clears the old order
+      navAnchor: coords ?? null,
+      adjacentPins: [],
+    })),
+  openAdjacentStory: (id, coords) =>
+    set((state) => ({
+      openStoryId: id,
+      trendingOpen: false,
+      storyHistory: state.openStoryId && state.openStoryId !== id
+        ? [...state.storyHistory, state.openStoryId]
+        : state.storyHistory,
+      storyCoords: { ...state.storyCoords, [id]: coords },
+      // deliberately keep navAnchor + adjacentPins so the tour stays anchored
+    })),
+  setNavAnchor: (anchor) => set({ navAnchor: anchor }),
+  closeStory: () => set({ openStoryId: null, storyHistory: [], navAnchor: null, adjacentPins: [] }),
+  goBackStory: () =>
+    set((state) => {
+      if (state.storyHistory.length === 0) return {};
+      const prev = state.storyHistory[state.storyHistory.length - 1];
+      return {
+        openStoryId: prev,
+        storyHistory: state.storyHistory.slice(0, -1),
+      };
+    }),
   setTrendingOpen: (open) => set({ trendingOpen: open }),
   setCategoryFilter: (id) => set({ categoryFilter: id }),
   hydrateShowAllPins: () =>
-    set({ showAllPins: loadPref<string>("loci_show_all_pins", "0") === "1" }),
+    set({ showAllPins: loadPref<string>("loci_show_all_pins", "1") === "1" }),
   toggleShowAllPins: () =>
     set((state) => {
       const next = !state.showAllPins;
@@ -104,6 +169,6 @@ export const useUiStore = create<UiState>((set) => ({
   setMapViewOpen: (mapViewOpen) => set({ mapViewOpen }),
   showToast: (message) => set({ toast: message }),
   clearToast: () => set({ toast: null }),
-  requestPanTo: (lat, lon, zoom) =>
-    set({ panRequest: { lat, lon, zoom, id: Date.now() } }),
+  requestPanTo: (lat, lon, zoom, paddingBottom) =>
+    set({ panRequest: { lat, lon, zoom, paddingBottom, id: Date.now() } }),
 }));

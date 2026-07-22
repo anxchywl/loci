@@ -6,14 +6,15 @@ import { useEffect, useState } from "react";
 import { ReactionButton } from "@/features/stories/components/reaction-button";
 import { authorLabel } from "@/features/stories/api";
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
+import { circularNeighbors } from "@/features/stories/proximity";
 import {
   useBookmark,
   useCategories,
   useDeleteStory,
+  useDeleteStoryPhoto,
   useReportStory,
   useStory,
 } from "@/features/stories/hooks";
-import { categoryIcons } from "@/lib/icons/category-glyphs";
 import { useDict } from "@/lib/i18n/use-dict";
 import { openTelegramLink, switchInlineQuery } from "@/lib/telegram/init";
 import { useUiStore } from "@/stores/ui-store";
@@ -33,19 +34,33 @@ export function StorySheet({ authenticated }: StorySheetProps) {
   const t = useDict();
   const storyId = useUiStore((state) => state.openStoryId);
   const closeStory = useUiStore((state) => state.closeStory);
+  const openAdjacentStory = useUiStore((state) => state.openAdjacentStory);
+  const adjacentPins = useUiStore((state) => state.adjacentPins);
+  const requestPanTo = useUiStore((state) => state.requestPanTo);
   const showToast = useUiStore((state) => state.showToast);
 
-  const { data: story } = useStory(storyId);
+  const { data: fetchedStory } = useStory(storyId);
+  const [displayedStory, setDisplayedStory] = useState<typeof fetchedStory>(undefined);
   const { data: categories } = useCategories();
   const bookmark = useBookmark(storyId ?? "");
   const report = useReportStory(storyId ?? "");
   const deleteStory = useDeleteStory();
+  const deletePhoto = useDeleteStoryPhoto(storyId ?? "");
   // inline confirmation shown before a destructive/irreversible action
   const [confirming, setConfirming] = useState<"delete" | "report" | null>(null);
   // full-screen photo viewer; holds the url of the photo being viewed
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [sheetHeight, setSheetHeight] = useState(0);
 
   // reset any pending confirmation when the sheet switches to another story
+  useEffect(() => {
+    if (!storyId) {
+      setDisplayedStory(undefined);
+      return;
+    }
+    if (fetchedStory) setDisplayedStory(fetchedStory);
+  }, [storyId, fetchedStory]);
+
   useEffect(() => {
     setConfirming(null);
     setLightboxUrl(null);
@@ -61,7 +76,19 @@ export function StorySheet({ authenticated }: StorySheetProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxUrl]);
 
+  const { prev: prevPin, next: nextPin } = circularNeighbors(adjacentPins, storyId);
+
+  // ~60% of viewport height — keeps the pin above the bottom sheet on mobile
+  const mobilePadding = sheetHeight || (typeof window !== "undefined" ? Math.round(window.innerHeight * 0.6) : 400);
+
+  const goTo = (pin: { id: string; lat: number; lon: number }) => {
+    openAdjacentStory(pin.id, { lat: pin.lat, lon: pin.lon });
+    requestPanTo(pin.lat, pin.lon, undefined, mobilePadding);
+  };
+
   if (!storyId) return null;
+
+  const story = fetchedStory ?? displayedStory;
 
   const confirmAction = () => {
     if (!story) return;
@@ -85,7 +112,6 @@ export function StorySheet({ authenticated }: StorySheetProps) {
   };
 
   const category = categories?.find((c) => c.id === story?.category_id);
-  const Icon = category ? categoryIcons[category.slug] : null;
   // only approved stories accept reactions/bookmarks — pending or rejected ones
   // are visible only to their author and must not be interactable
   const canInteract = story?.moderation_status === "approved";
@@ -109,10 +135,22 @@ export function StorySheet({ authenticated }: StorySheetProps) {
   };
 
   return (
-    <BottomSheet open onClose={closeStory} title={confirming === "delete" ? undefined : story?.title ?? t.loading}>
-      {story && (
+    <BottomSheet
+      open
+      onClose={closeStory}
+      title={confirming === "delete" ? undefined : story?.title}
+      subtitle={story ? authorLabel(story.author) ?? t.anonymous : undefined}
+      titleColor={category?.color}
+      onPrev={prevPin && !confirming ? () => goTo(prevPin) : undefined}
+      onNext={nextPin && !confirming ? () => goTo(nextPin) : undefined}
+      prevLabel={t.previousStory}
+      nextLabel={t.nextStory}
+      onHeightChange={setSheetHeight}
+      navigationAtBottom
+    >
+      {story ? (
         <div
-          key={confirming ?? "story"}
+          key={`${storyId}-${confirming ?? "story"}`}
           className="space-y-4 motion-safe:animate-story-state"
         >
           {confirming === "delete" ? (
@@ -128,38 +166,67 @@ export function StorySheet({ authenticated }: StorySheetProps) {
             </div>
           ) : (
           <>
-          <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-            {category && Icon && (
-              <span
-                className="flex items-center gap-1 rounded-full px-2.5 py-1 font-medium text-white"
-                style={{ backgroundColor: category.color }}
-              >
-                <Icon size={13} color="#ffffff" />
-                {t.categories[category.slug]}
-              </span>
-            )}
-            {authorLabel(story.author) && <span>{authorLabel(story.author)}</span>}
+          <div className="flex items-center justify-between gap-2 border-b border-border pb-3 text-[13px] text-muted">
+            <span className="flex min-w-0 items-center gap-1 truncate">
+              <MapPin size={13} />
+              {story.location_precision === "approx" ? "≈" : ""}
+              {story.lat.toFixed(3)}, {story.lon.toFixed(3)}
+            </span>
+            {story.happened_on && <span className="shrink-0">{formatHappenedOn(story.happened_on)}</span>}
           </div>
 
           {story.photos.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {story.photos.map((photo) => (
-                <button
-                  key={photo.id}
-                  type="button"
-                  onClick={() => setLightboxUrl(photo.url)}
-                  aria-label={t.viewPhoto}
-                  className="shrink-0 transition-transform duration-150 ease-lm active:scale-[0.98]"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo.thumb_url ?? photo.url}
-                    alt=""
-                    className="h-40 rounded-sheet object-cover"
-                  />
+            story.photos.length === 1 ? (
+              <div className="relative">
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(story.photos[0].url)}
+                aria-label={t.viewPhoto}
+                className="block w-full transition-transform duration-150 ease-lm active:scale-[0.99]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={story.photos[0].thumb_url ?? story.photos[0].url}
+                  alt=""
+                  className="h-52 w-full rounded-sheet object-cover"
+                />
+              </button>
+              {story.viewer_is_owner && (
+                <button type="button" aria-label={t.deletePhoto} disabled={deletePhoto.isPending}
+                  onClick={() => { if (window.confirm(t.deletePhoto)) deletePhoto.mutate(story.photos[0].id); }}
+                  className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50">
+                  <Trash2 size={17} />
                 </button>
-              ))}
-            </div>
+              )}
+              </div>
+            ) : (
+              <div className="flex gap-2 overflow-x-auto">
+                {story.photos.map((photo) => (
+                  <div key={photo.id} className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setLightboxUrl(photo.url)}
+                    aria-label={t.viewPhoto}
+                    className="shrink-0 transition-transform duration-150 ease-lm active:scale-[0.98]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.thumb_url ?? photo.url}
+                      alt=""
+                      className="h-44 w-36 rounded-sheet object-cover"
+                    />
+                  </button>
+                  {story.viewer_is_owner && (
+                    <button type="button" aria-label={t.deletePhoto} disabled={deletePhoto.isPending}
+                      onClick={() => { if (window.confirm(t.deletePhoto)) deletePhoto.mutate(photo.id); }}
+                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50">
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                  </div>
+                ))}
+              </div>
+            )
           )}
 
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{story.body}</p>
@@ -238,18 +305,10 @@ export function StorySheet({ authenticated }: StorySheetProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-3 text-[13px] text-muted">
-            <span className="flex items-center gap-1">
-              <MapPin size={13} />
-              {story.location_precision === "approx" ? "≈" : ""}
-              {story.lat.toFixed(3)}, {story.lon.toFixed(3)}
-            </span>
-            {story.happened_on && <span>{formatHappenedOn(story.happened_on)}</span>}
-          </div>
           </>
           )}
         </div>
-      )}
+      ) : null}
       {lightboxUrl && (
         <div
           role="dialog"

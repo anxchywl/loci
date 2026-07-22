@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import PhotoStatus, StoryPhoto
@@ -73,6 +73,16 @@ async def list_for_story(db: AsyncSession, story_id: uuid.UUID) -> list[StoryPho
     return list(result.scalars().all())
 
 
+async def list_all_for_story(db: AsyncSession, story_id: uuid.UUID) -> list[StoryPhoto]:
+    result = await db.execute(
+        select(StoryPhoto)
+        .where(StoryPhoto.story_id == story_id)
+        .order_by(StoryPhoto.position)
+        .with_for_update()
+    )
+    return list(result.scalars().all())
+
+
 async def list_for_stories(
     db: AsyncSession, story_ids: list[uuid.UUID]
 ) -> dict[uuid.UUID, list[StoryPhoto]]:
@@ -112,17 +122,22 @@ async def mark_ready(
     width: int,
     height: int,
     content_type: str,
-) -> None:
-    photo = await db.get(StoryPhoto, photo_id)
-    if photo is None:
-        return
-    photo.object_key = object_key
-    photo.thumb_key = thumb_key
-    photo.width = width
-    photo.height = height
-    photo.content_type = content_type
-    photo.status = PhotoStatus.ready
+) -> bool:
+    result = await db.execute(
+        update(StoryPhoto)
+        .where(StoryPhoto.id == photo_id)
+        .values(
+            object_key=object_key,
+            thumb_key=thumb_key,
+            width=width,
+            height=height,
+            content_type=content_type,
+            status=PhotoStatus.ready,
+        )
+        .returning(StoryPhoto.id)
+    )
     await db.flush()
+    return result.scalar_one_or_none() is not None
 
 
 async def mark_failed(db: AsyncSession, photo_id: uuid.UUID) -> None:

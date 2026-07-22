@@ -73,6 +73,7 @@ interface Dict {
   report: string;
   reported: string;
   deleteStory: string;
+  deletePhoto: string;
   deleteComment: string;
   saved: string;
   save: string;
@@ -100,6 +101,9 @@ interface Dict {
   mapBright: string;
   nearby: string;
   noNearby: string;
+  previousStory: string;
+  nextStory: string;
+  backToPreviousStory: string;
   settings: string;
   about: string;
   languageLabel: string;
@@ -283,6 +287,7 @@ export const dict: Record<Locale, Dict> = {
     report: "Report",
     reported: "Reported",
     deleteStory: "Delete story",
+    deletePhoto: "Delete photo",
     deleteComment: "Delete",
     saved: "Saved",
     save: "Save",
@@ -310,6 +315,9 @@ export const dict: Record<Locale, Dict> = {
     mapBright: "Detailed map",
     nearby: "Nearby",
     noNearby: "No stories found nearby",
+    previousStory: "Previous nearby story",
+    nextStory: "Next nearby story",
+    backToPreviousStory: "Back to previous story",
     settings: "Settings",
     about: "About",
     languageLabel: "Language",
@@ -504,6 +512,7 @@ export const dict: Record<Locale, Dict> = {
     report: "Шағымдану",
     reported: "Шағым жіберілді",
     deleteStory: "Оқиғаны жою",
+    deletePhoto: "Фотоны жою",
     deleteComment: "Жою",
     saved: "Сақталды",
     save: "Сақтау",
@@ -531,6 +540,9 @@ export const dict: Record<Locale, Dict> = {
     mapBright: "Егжей-тегжейлі карта",
     nearby: "Жақын маңда",
     noNearby: "Жақын маңда оқиғалар табылмады",
+    previousStory: "Алдыңғы жақын оқиға",
+    nextStory: "Келесі жақын оқиға",
+    backToPreviousStory: "Алдыңғы оқиғаға оралу",
     settings: "Параметрлер",
     about: "Қосымша туралы",
     languageLabel: "Тіл",
@@ -725,6 +737,7 @@ export const dict: Record<Locale, Dict> = {
     report: "Пожаловаться",
     reported: "Жалоба отправлена",
     deleteStory: "Удалить историю",
+    deletePhoto: "Удалить фото",
     deleteComment: "Удалить",
     saved: "Сохранено",
     save: "Сохранить",
@@ -752,6 +765,9 @@ export const dict: Record<Locale, Dict> = {
     mapBright: "Детальная карта",
     nearby: "Рядом",
     noNearby: "Рядом историй не найдено",
+    previousStory: "Предыдущая история рядом",
+    nextStory: "Следующая история рядом",
+    backToPreviousStory: "Назад к предыдущей истории",
     settings: "Настройки",
     about: "О приложении",
     languageLabel: "Язык",

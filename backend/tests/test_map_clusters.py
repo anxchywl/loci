@@ -18,16 +18,22 @@ async def test_clusters_count_discoverable_stories_only(client, db_session):
     assert all(set(c.keys()) == {"lat", "lon", "count"} for c in clusters)
 
 
-async def test_clusters_cache_serves_within_ttl(client, db_session):
+async def test_clusters_cache_serves_until_visibility_generation_changes(
+    client, db_session, fake_redis
+):
+    from app.modules.stories import map_clusters
+
     await authenticate(client, telegram_id=1)
     await create_story(client, db_session, title="cached era")
 
     first = (await client.get("/api/v1/stories/map-clusters", params=WORLD)).json()
-    # a story approved after the cache fills is invisible until the TTL expires —
-    # the documented freshness bound of this cache
     await create_story(client, db_session, title="after cache fill")
-    second = (await client.get("/api/v1/stories/map-clusters", params=WORLD)).json()
-    assert second == first
+    cached = (await client.get("/api/v1/stories/map-clusters", params=WORLD)).json()
+    assert cached == first
+
+    await map_clusters.invalidate(fake_redis)
+    refreshed = (await client.get("/api/v1/stories/map-clusters", params=WORLD)).json()
+    assert sum(cluster["count"] for cluster in refreshed) == 2
 
 
 async def test_clusters_category_filter_uses_distinct_cache_keys(client, db_session):

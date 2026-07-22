@@ -250,7 +250,9 @@ async def update_story(
     await check_rate_limit(
         redis, "rl:story-mutation", str(user.id), 60, settings.story_mutations_per_minute
     )
-    return await service.update_story(db, story_id, user.id, payload, settings)
+    result = await service.update_story(db, story_id, user.id, payload, settings)
+    await map_clusters_service.invalidate(redis)
+    return result
 
 
 @router.post("/{story_id}/resubmit", response_model=StoryResponse)
@@ -279,6 +281,7 @@ async def delete_story(
         redis, "rl:story-mutation", str(user.id), 60, settings.story_mutations_per_minute
     )
     await service.delete_story(db, story_id, user.id)
+    await map_clusters_service.invalidate(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -389,6 +392,7 @@ async def report_story(
 ) -> Response:
     await check_rate_limit(redis, "rl:report", str(user.id), 86400, settings.reports_per_day)
     await interactions.report_story(db, story_id, user.id, payload.reason, settings)
+    await map_clusters_service.invalidate(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -428,6 +432,22 @@ async def complete_photo_upload(
         fallback_reason=telemetry.fallback_reason,
     )
     return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@router.delete("/{story_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_story_photo(
+    story_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Response:
+    await check_rate_limit(
+        redis, "rl:story-mutation", str(user.id), 60, settings.story_mutations_per_minute
+    )
+    await photos.delete_photo(db, story_id, photo_id, user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.put("/{story_id}/photos/{photo_id}/upload", status_code=status.HTTP_204_NO_CONTENT)

@@ -131,6 +131,16 @@ export function fetchMapPins(params: BboxParams, signal?: AbortSignal): Promise<
   return apiFetch<StoryPin[]>(`/stories/map?${query}`, { signal });
 }
 
+export function fetchWorldMapPins(categoryId: number | null, signal?: AbortSignal): Promise<StoryPin[]> {
+  return fetchMapPins({
+    minLat: -90,
+    minLon: -180,
+    maxLat: 90,
+    maxLon: 180,
+    categoryId,
+  }, signal);
+}
+
 // low-zoom aggregation — see docs/PRODUCT.md /stories/map-clusters
 export interface MapCluster {
   lat: number;
@@ -185,6 +195,10 @@ export function resubmitStory(id: string): Promise<Story> {
 
 export function deleteStory(id: string): Promise<void> {
   return apiFetch<void>(`/stories/${id}`, { method: "DELETE" });
+}
+
+export function deleteStoryPhoto(storyId: string, photoId: string): Promise<void> {
+  return apiFetch<void>(`/stories/${storyId}/photos/${photoId}`, { method: "DELETE" });
 }
 
 export function addReaction(storyId: string): Promise<void> {

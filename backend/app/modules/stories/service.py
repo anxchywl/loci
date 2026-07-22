@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import anyio
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -226,8 +227,19 @@ async def delete_story(db: AsyncSession, story_id: uuid.UUID, author_id: int) ->
     story = await stories_repo.get_owned(db, story_id, author_id)
     if story is None:
         raise StoryNotFound()
+    photos = await photos_repo.list_all_for_story(db, story_id)
+    object_keys = {
+        object_key
+        for photo in photos
+        for object_key in (photo.object_key, photo.thumb_key)
+        if object_key
+    }
+    for object_key in object_keys:
+        await anyio.to_thread.run_sync(storage.delete_object, object_key)
     await stories_repo.delete(db, story)
     await db.commit()
+    for object_key in object_keys:
+        await storage.invalidate_presigned_get_url(object_key)
 
 
 async def _photo_responses(

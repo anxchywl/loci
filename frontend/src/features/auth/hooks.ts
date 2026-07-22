@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { fetchCurrentUser, postTelegramAuth, type AuthUser } from "@/features/auth/api";
 import { refreshAccessToken, setAccessToken } from "@/lib/api";
@@ -27,6 +28,7 @@ async function restoreSession(): Promise<AuthUser | null> {
 }
 
 export function useTelegramAuth(): { status: AuthStatus; user: AuthUser | null } {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>(cachedUser ? "authenticated" : "loading");
   const [user, setUser] = useState<AuthUser | null>(cachedUser);
   const setLocale = useUiStore((state) => state.setLocale);
@@ -57,6 +59,10 @@ export function useTelegramAuth(): { status: AuthStatus; user: AuthUser | null }
       if (launch) setLocale(resolveLocale(launch.languageCode));
 
       const applyUser = (authUser: AuthUser): void => {
+        const previousUserId = cachedUser?.id;
+        if (previousUserId !== undefined && previousUserId !== authUser.id) {
+          queryClient.clear();
+        }
         cachedUser = authUser;
         setUser(authUser);
         setStatus("authenticated");
@@ -73,6 +79,7 @@ export function useTelegramAuth(): { status: AuthStatus; user: AuthUser | null }
 
       // 2. No session to restore — authenticate fresh via Telegram initData.
       if (!launch) {
+        queryClient.clear();
         setStatus("signed-out");
         return;
       }
@@ -89,7 +96,7 @@ export function useTelegramAuth(): { status: AuthStatus; user: AuthUser | null }
     return () => {
       cancelled = true;
     };
-  }, [setLocale, openStory]);
+  }, [setLocale, openStory, queryClient]);
 
   return { status, user };
 }

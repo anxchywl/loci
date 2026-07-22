@@ -4,8 +4,9 @@ from typing import Annotated
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 
-from app.api.deps import get_current_admin, get_db_session
+from app.api.deps import get_current_admin, get_db_session, get_redis
 from app.core.config import Settings, get_settings
 from app.db.models import User
 from app.db.models.story import ModerationStatus
@@ -28,6 +29,7 @@ from app.modules.admin.schemas import (
     AuditLogsResponse,
 )
 from app.modules.stories import service as story_service
+from app.modules.stories import map_clusters as map_clusters_service
 from app.db.repositories import stories as stories_repo
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -158,8 +160,10 @@ async def approve_story(
     admin: Annotated[User, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> Response:
     await moderation.approve(db, story_id, admin.id, settings)
+    await map_clusters_service.invalidate(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -170,8 +174,10 @@ async def reject_story(
     admin: Annotated[User, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> Response:
     await moderation.reject(db, story_id, admin.id, payload.reason, settings)
+    await map_clusters_service.invalidate(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -209,6 +215,8 @@ async def resolve_reports(
     admin: Annotated[User, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> Response:
     await reports_service.resolve(db, admin.id, story_id, payload.action, payload.reason, settings)
+    await map_clusters_service.invalidate(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
