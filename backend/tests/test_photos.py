@@ -62,6 +62,88 @@ async def test_upload_rejects_unsupported_content_type(client):
     assert response.status_code == 422
 
 
+async def test_delete_photo_requires_owner_and_removes_storage_and_metadata(
+    client, db_session, monkeypatch
+):
+    from app.db.repositories import photos as photos_repo
+
+    await authenticate(client, telegram_id=1)
+    story_id = await create_story(client)
+    created = (
+        await client.post(
+            f"/api/v1/stories/{story_id}/photos", json={"content_type": "image/jpeg"}
+        )
+    ).json()
+    photo_id = uuid.UUID(created["photo_id"])
+    photo = await photos_repo.get(db_session, photo_id)
+    deleted_keys: list[str] = []
+    invalidated_keys: list[str | None] = []
+    monkeypatch.setattr(storage, "delete_object", deleted_keys.append)
+
+    async def record_invalidation(object_key: str | None) -> None:
+        invalidated_keys.append(object_key)
+
+    monkeypatch.setattr(storage, "invalidate_presigned_get_url", record_invalidation)
+
+    await authenticate(client, telegram_id=2)
+    denied = await client.delete(f"/api/v1/stories/{story_id}/photos/{photo_id}")
+    assert denied.status_code == 404
+
+    await authenticate(client, telegram_id=1)
+    deleted = await client.delete(f"/api/v1/stories/{story_id}/photos/{photo_id}")
+    assert deleted.status_code == 204
+    assert deleted_keys == [photo.object_key]
+    assert invalidated_keys == [photo.object_key]
+    assert await photos_repo.get(db_session, photo_id) is None
+
+
+async def test_delete_story_removes_all_photo_objects(client, db_session, monkeypatch):
+    from app.db.repositories import photos as photos_repo
+
+    await authenticate(client, telegram_id=1)
+    story_id = await create_story(client)
+    created = (
+        await client.post(
+            f"/api/v1/stories/{story_id}/photos", json={"content_type": "image/png"}
+        )
+    ).json()
+    photo_id = uuid.UUID(created["photo_id"])
+    photo = await photos_repo.get(db_session, photo_id)
+    photo.thumb_key = f"stories/{story_id}/{photo_id}/thumb.webp"
+    await db_session.commit()
+    deleted_keys: list[str] = []
+    monkeypatch.setattr(storage, "delete_object", deleted_keys.append)
+
+    async def ignore_invalidation(_object_key: str | None) -> None:
+        return None
+
+    monkeypatch.setattr(storage, "invalidate_presigned_get_url", ignore_invalidation)
+
+    response = await client.delete(f"/api/v1/stories/{story_id}")
+
+    assert response.status_code == 204
+    assert set(deleted_keys) == {photo.object_key, photo.thumb_key}
+    db_session.expire_all()
+    assert await photos_repo.get(db_session, photo_id) is None
+
+
+async def test_deleted_photo_cannot_be_marked_ready_again(db_session):
+    from app.db.repositories import photos as photos_repo
+
+    missing_id = uuid.uuid4()
+    updated = await photos_repo.mark_ready(
+        db_session,
+        missing_id,
+        object_key=f"stories/missing/{missing_id}/full.webp",
+        thumb_key=f"stories/missing/{missing_id}/thumb.webp",
+        width=100,
+        height=100,
+        content_type="image/webp",
+    )
+
+    assert updated is False
+
+
 async def test_proxy_upload_stream_rejects_oversize_without_consuming_photo_slot(
     client, db_session, monkeypatch
 ):

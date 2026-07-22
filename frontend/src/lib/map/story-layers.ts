@@ -52,6 +52,18 @@ const POINT_ICON_SIZE = [
   15, 1.0,
 ] as unknown as ExpressionSpecification;
 
+export function pointIconSizeExpression(storyId: string | null): ExpressionSpecification {
+  if (!storyId) return POINT_ICON_SIZE;
+  return [
+    "interpolate", ["linear"], ["zoom"],
+    1, ["case", ["==", ["get", "id"], storyId], 0.52, 0.46],
+    4, ["case", ["==", ["get", "id"], storyId], 0.76, 0.68],
+    8, ["case", ["==", ["get", "id"], storyId], 0.9, 0.8],
+    12, ["case", ["==", ["get", "id"], storyId], 1.02, 0.9],
+    15, ["case", ["==", ["get", "id"], storyId], 1.12, 1.0],
+  ] as unknown as ExpressionSpecification;
+}
+
 export function addStoryLayers(
   map: MapLibreMap,
   onStoryClick: (storyId: string, lat?: number, lon?: number) => void,
@@ -175,6 +187,14 @@ export function addStoryLayers(
       map.getCanvas().style.cursor = "";
     });
   }
+}
+
+export function setSelectedStory(map: MapLibreMap, storyId: string | null): void {
+  if (!map.getLayer(POINT_LAYER)) return;
+    map.setLayoutProperty(POINT_LAYER, "icon-size", pointIconSizeExpression(storyId));
+  map.setLayoutProperty(POINT_LAYER, "symbol-sort-key", storyId
+    ? ["case", ["==", ["get", "id"], storyId], 1, 0]
+    : 0);
 }
 
 // Remove the story source and its layers so they can be re-added with a

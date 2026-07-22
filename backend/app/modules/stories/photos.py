@@ -210,3 +210,25 @@ async def upload_stream(
         )
     counter("photo_proxy_upload_total", help=_PROXY_TOTAL_HELP, labels={"outcome": "stored"})
     log_event(logger, "photo_proxy_stored", photo_id=str(photo_id), bytes=total)
+
+
+async def delete_photo(
+    db: AsyncSession,
+    story_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    author_id: int,
+) -> None:
+    if await stories_repo.get_owned(db, story_id, author_id) is None:
+        raise StoryNotFound()
+    photo = await photos_repo.get_for_update(db, photo_id)
+    if photo is None or photo.story_id != story_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
+
+    object_keys = {key for key in (photo.object_key, photo.thumb_key) if key}
+    for object_key in object_keys:
+        await anyio.to_thread.run_sync(storage.delete_object, object_key)
+
+    await photos_repo.delete_by_ids(db, [photo.id])
+    await db.commit()
+    for object_key in object_keys:
+        await storage.invalidate_presigned_get_url(object_key)

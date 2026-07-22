@@ -51,7 +51,7 @@ body {
 }
 
 .keyboard-sheet-editing {
-  max-height: min(82dvh, 660px);
+  max-height: min(80dvh, 660px);
   padding-bottom: calc(4px + min(env(safe-area-inset-bottom), 20px));
   scroll-padding: 16px 0 calc(42px + min(env(safe-area-inset-bottom), 34px));
   scroll-behavior: smooth;

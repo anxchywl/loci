@@ -129,6 +129,19 @@ async def presigned_get_url_cached(object_key: str, expires_seconds: int) -> str
     return url
 
 
+async def invalidate_presigned_get_url(object_key: str | None) -> None:
+    if not object_key:
+        return
+    from redis.exceptions import RedisError
+
+    from app.integrations.redis import get_redis_client
+
+    try:
+        await get_redis_client().delete(f"photo-url:{object_key}")
+    except RedisError:
+        pass
+
+
 def get_object_bytes(object_key: str) -> bytes:
     response = get_client().get_object(get_settings().s3_media_bucket, object_key)
     try:

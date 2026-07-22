@@ -11,8 +11,8 @@ import unicodedata
 # C0/C1 control characters except tab/newline/carriage-return, plus zero-width
 # and bidi-override characters used to smuggle spoofed or hidden text.
 _CONTROL_RE = re.compile(
-    "[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f"
-    "​-‏‪-‮⁦-⁩﻿]"
+    r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f"
+    r"\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]"
 )
 # any run of whitespace that is not a newline (regular, tab, and unicode spaces)
 _INLINE_WS_RE = re.compile(r"[^\S\n]+")

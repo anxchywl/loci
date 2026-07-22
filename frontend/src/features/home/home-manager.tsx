@@ -42,9 +42,11 @@ import {
   useCategories,
   useMapClusters,
   useMapPins,
+  useWorldMapPins,
   useSearch,
   useTrending,
 } from "@/features/stories/hooks";
+import { sortPinsByAnchor } from "@/features/stories/proximity";
 import { StorySheet } from "@/features/stories/story-sheet";
 import { useDict } from "@/lib/i18n/use-dict";
 import { locate } from "@/lib/telegram/location";
@@ -95,6 +97,9 @@ export function HomeManager() {
   const setTrendingOpen = useUiStore((state) => state.setTrendingOpen);
   const openStory = useUiStore((state) => state.openStory);
   const openStoryId = useUiStore((state) => state.openStoryId);
+  const setAdjacentPins = useUiStore((state) => state.setAdjacentPins);
+  const navAnchor = useUiStore((state) => state.navAnchor);
+  const setNavAnchor = useUiStore((state) => state.setNavAnchor);
   const requestPanTo = useUiStore((state) => state.requestPanTo);
 
   const [bounds, setBounds] = useState<MapBounds | null>(null);
@@ -130,6 +135,7 @@ export function HomeManager() {
         }
       : null,
   );
+  const { data: worldPins = [] } = useWorldMapPins(Boolean(openStoryId), categoryFilter);
   const { data: clusters = [] } = useMapClusters(
     clusterMode && bounds ? { ...bounds, categoryId: categoryFilter } : null,
   );
@@ -169,6 +175,33 @@ export function HomeManager() {
     setSidebarOpen(true);
     setActivePanel("story");
   }, [openStoryId]);
+
+  // Geographic neighbour list for the open story: the currently visible pins
+  // ordered nearest-first around it. Rebuilt whenever the open story or the pin
+  // set changes so prev/next never point at stale or filtered-out stories. This
+  // is proximity navigation and is deliberately separate from browsing history
+  // (storyHistory) in the store.
+  useEffect(() => {
+    if (!openStoryId) {
+      setAdjacentPins([]);
+      return;
+    }
+    const tourPins = [...pins, ...worldPins.filter((worldPin) => !pins.some((pin) => pin.id === worldPin.id))];
+    const currentPin = tourPins.find((p) => p.id === openStoryId);
+    // anchor the tour on the story the user first opened. When it was opened
+    // without coords (e.g. a deep link), derive the anchor from its pin once
+    // loaded and persist it so later prev/next hops stay anchored here.
+    const anchor = navAnchor ?? (currentPin ? { lat: currentPin.lat, lon: currentPin.lon } : null);
+    if (!anchor) {
+      setAdjacentPins([]);
+      return;
+    }
+    if (!navAnchor) setNavAnchor(anchor);
+    // the current story must be among the loaded pins to navigate from it; if
+    // not (opened off-screen / clustered), clear rather than show stale
+    // neighbours — it self-heals once the pan loads pins around it
+    setAdjacentPins(currentPin ? sortPinsByAnchor(tourPins, anchor) : []);
+  }, [openStoryId, pins, worldPins, navAnchor, setNavAnchor, setAdjacentPins]);
 
   const locateMe = async () => {
     if (locating) return;
@@ -249,9 +282,11 @@ export function HomeManager() {
     label: string;
     icon: React.ReactNode;
   }[] = [
-    { panel: "saved", label: t.savedStories, icon: <Bookmark size={16} /> },
-    { panel: "my-stories", label: t.myStories, icon: <BookOpen size={16} /> },
-    { panel: "about", label: t.about, icon: <Info size={16} /> },
+    ...(authenticated ? [
+      { panel: "saved" as const, label: t.savedStories, icon: <Bookmark size={16} /> },
+      { panel: "my-stories" as const, label: t.myStories, icon: <BookOpen size={16} /> },
+      { panel: "about" as const, label: t.about, icon: <Info size={16} /> },
+    ] : []),
   ];
 
   return (
@@ -279,6 +314,7 @@ export function HomeManager() {
       {/* Search + categories bar */}
       {mode !== "compose" && (
         <div
+          data-map-controls
           className={[
             "absolute inset-x-0 top-0 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]",
             "transition-[padding-left] duration-[230ms] ease-lm",
@@ -288,7 +324,7 @@ export function HomeManager() {
           {/* Mobile: stacked layout */}
           <div className="flex flex-col gap-2 lg:hidden">
             <div className="flex items-center gap-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-bg px-3 py-2 shadow-sm transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-[var(--lm-focus)]">
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-bg px-3 py-2 shadow-sm transition-colors focus-within:border-accent">
                 <Search size={16} className="shrink-0 text-muted" />
                 <input
                   ref={searchInputRef}
@@ -327,7 +363,7 @@ export function HomeManager() {
                   )}
                   {searchResults?.map((story) => (
                     <StoryListItem key={story.id} story={story} categories={categories}
-                      onOpen={(id) => { setSearchQuery(""); openStory(id); requestPanTo(story.lat, story.lon); }} />
+                      onOpen={(id) => { setSearchQuery(""); openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
                   ))}
                 </div>
               </div>
@@ -337,7 +373,7 @@ export function HomeManager() {
           {/* Desktop: search anchored left + categories after */}
           <div className="hidden min-w-0 items-start gap-3 overflow-hidden lg:flex">
             <div className="relative w-[320px] shrink-0">
-              <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3.5 py-2 transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-[var(--lm-focus)]">
+              <div className="flex items-center gap-2 rounded-full border border-border bg-bg px-3.5 py-2 transition-colors focus-within:border-accent">
                 <Search size={16} className="shrink-0 text-muted" />
                 <input
                   ref={searchInputRef}
@@ -360,7 +396,7 @@ export function HomeManager() {
                     )}
                     {searchResults?.map((story) => (
                       <StoryListItem key={story.id} story={story} categories={categories}
-                        onOpen={(id) => { setSearchQuery(""); openStory(id); requestPanTo(story.lat, story.lon); }} />
+                        onOpen={(id) => { setSearchQuery(""); openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
                     ))}
                   </div>
                 </div>
@@ -496,7 +532,7 @@ export function HomeManager() {
         )}
         {trendingStories?.map((story) => (
           <StoryListItem key={story.id} story={story} categories={categories}
-            onOpen={(id) => { openStory(id); requestPanTo(story.lat, story.lon); }} />
+            onOpen={(id) => { openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
         ))}
       </BottomSheet>
 
@@ -524,7 +560,7 @@ export function HomeManager() {
               <div className="-mx-3 -mt-2 mb-2">
                 <ProfilePanel onSettingsClick={() => setMobilePanel("settings")} />
               </div>
-              <div className="mx-2 mb-2 h-px bg-border" />
+              {mobileMenuItems.length > 0 && <div className="mx-2 mb-2 h-px bg-border" />}
               {mobileMenuItems.map((item) => (
                 <button
                   key={item.panel}
@@ -552,7 +588,7 @@ export function HomeManager() {
                   )}
                   {trendingStories?.map((story) => (
                     <StoryListItem key={story.id} story={story} categories={categories}
-                      onOpen={(id) => { closeMobileMenu(); openStory(id); requestPanTo(story.lat, story.lon); }} />
+                      onOpen={(id) => { closeMobileMenu(); openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
                   ))}
                 </div>
               )}
@@ -570,7 +606,7 @@ export function HomeManager() {
                   )}
                   {nearbyLocation && nearbyStories.map((story) => (
                     <StoryListItem key={story.id} story={story} categories={categories}
-                      onOpen={(id) => { closeMobileMenu(); openStory(id); requestPanTo(story.lat, story.lon); }} />
+                      onOpen={(id) => { closeMobileMenu(); openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
                   ))}
                 </div>
               )}
@@ -578,13 +614,13 @@ export function HomeManager() {
               {mobilePanel === "saved" && (
                 <SavedPanel
                   authenticated={authenticated}
-                  onOpen={(story) => { closeMobileMenu(); openStory(story.id); requestPanTo(story.lat, story.lon); }}
+                  onOpen={(story) => { closeMobileMenu(); openStory(story.id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }}
                 />
               )}
               {mobilePanel === "my-stories" && (
                 <MyStoriesPanel
                   authenticated={authenticated}
-                  onOpen={(story) => { closeMobileMenu(); openStory(story.id); requestPanTo(story.lat, story.lon); }}
+                  onOpen={(story) => { closeMobileMenu(); openStory(story.id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }}
                 />
               )}
               {mobilePanel === "about" && (

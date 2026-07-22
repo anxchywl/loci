@@ -35,9 +35,9 @@ const config: Config = {
         },
       },
       animation: {
-        "sheet-up": "sheet-up 250ms cubic-bezier(0.2, 0, 0, 1)",
+        "sheet-up": "sheet-up 240ms cubic-bezier(0.2, 0, 0, 1)",
         "fade-in": "fade-in 150ms cubic-bezier(0.2, 0, 0, 1)",
-        "story-state": "story-state 200ms cubic-bezier(0.2, 0, 0, 1)",
+        "story-state": "story-state 240ms cubic-bezier(0.2, 0, 0, 1)",
       },
     },
   },

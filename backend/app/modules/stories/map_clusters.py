@@ -5,10 +5,9 @@ aggregation returns every occupied cell with a count instead. The aggregate
 scans every discoverable story in view (measured 3.7 s for a world view over
 1M rows), so results are cached.
 
-Cache registry — key ``mapagg:v1:{zoom}:{bounds}:{category}``:
+Cache registry — key ``mapagg:v1:{generation}:{zoom}:{bounds}:{category}``:
 owner this module; data scope public (counts of already-discoverable points);
-TTL 60 s, expiry-only invalidation (cluster counts may lag moderation actions
-by up to a minute); stampede control via a singleflight lock with bounded
+TTL 60 s with generation invalidation after visibility changes; stampede control via a singleflight lock with bounded
 waiting; on Redis failure the aggregate is computed directly against
 PostgreSQL; privacy: aggregates of public fuzzed/public points only, no
 user- or moderation-scoped data ever enters the key or value.
@@ -37,6 +36,7 @@ _LOCK_WAIT_INTERVAL_SECONDS = 0.1
 _CELLS_PER_TILE = 8
 MIN_ZOOM = 0
 MAX_ZOOM = 10
+_GENERATION_KEY = "mapagg:v1:generation"
 
 
 def cell_degrees(zoom: int) -> float:
@@ -67,8 +67,9 @@ async def get_clusters(
     q_min_lon = max(-540.0, _snap(min_lon, cell, up=False))
     q_max_lon = min(540.0, _snap(max_lon, cell, up=True))
 
+    generation = await _generation(redis)
     key = (
-        f"mapagg:v1:{zoom}:{q_min_lat}:{q_min_lon}:{q_max_lat}:{q_max_lon}:"
+        f"mapagg:v1:{generation}:{zoom}:{q_min_lat}:{q_min_lon}:{q_max_lat}:{q_max_lon}:"
         f"{category_id or 0}"
     )
 
@@ -104,6 +105,21 @@ async def get_clusters(
     except RedisError:
         pass
     return clusters
+
+
+async def invalidate(redis: Redis) -> None:
+    try:
+        await redis.incr(_GENERATION_KEY)
+    except RedisError:
+        logger.debug("map cluster cache invalidation skipped", exc_info=True)
+
+
+async def _generation(redis: Redis) -> int:
+    try:
+        value = await redis.get(_GENERATION_KEY)
+        return int(value) if value else 0
+    except (RedisError, TypeError, ValueError):
+        return 0
 
 
 async def _read_cache(redis: Redis, key: str) -> list[MapClusterResponse] | None:
