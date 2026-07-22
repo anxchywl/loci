@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  ArrowUpRight,
   Bookmark,
   BookOpen,
   ChevronLeft,
@@ -535,12 +534,10 @@ const REPO_URL = "https://github.com/anxchywl/loci";
 function AboutLinkRow({
   icon,
   label,
-  external,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
-  external?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -552,7 +549,6 @@ function AboutLinkRow({
         {icon}
       </span>
       <span className="min-w-0 flex-1 transition-colors group-hover:text-accent">{label}</span>
-      {external && <ArrowUpRight size={15} className="shrink-0 text-muted transition-colors group-hover:text-accent" />}
     </button>
   );
 }
@@ -589,7 +585,7 @@ export function AboutPanel({ onOpenDoc }: { onOpenDoc: (id: LegalDocId) => void 
         {docLinks.map(({ id, icon, label }) => (
           <AboutLinkRow key={id} icon={icon} label={label} onClick={() => onOpenDoc(id)} />
         ))}
-        <AboutLinkRow icon={<Github size={16} />} label={t.aboutGithub} external
+        <AboutLinkRow icon={<Github size={16} />} label={t.aboutGithub}
           onClick={() => openExternalLink(REPO_URL)} />
       </div>
 

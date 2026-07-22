@@ -23,12 +23,13 @@ export function StoryListItem({ story, categories, onOpen, showStatus = false }:
       ? t.statusPending
       : story.moderation_status === "rejected"
         ? t.statusRejected
-        : null;
-  // amber for pending, red for rejected — approved shows no badge (it's the norm)
+        : t.statusApproved;
   const statusClass =
     story.moderation_status === "rejected"
       ? "bg-[#E5484D]/15 text-[#E5484D]"
-      : "bg-amber-500/15 text-amber-600 dark:text-amber-400";
+      : story.moderation_status === "pending"
+        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400";
 
   return (
     <button
