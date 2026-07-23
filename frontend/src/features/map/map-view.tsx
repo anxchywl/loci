@@ -204,6 +204,20 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         });
     });
 
+    // without a listener MapLibre console.errors every failed tile/sprite
+    // request. Those come from the external tile host, are transient, and the
+    // map retries on its own — so they stay a warning and only real map errors
+    // are raised as errors.
+    map.on("error", (event) => {
+      const error = event.error as (Error & { status?: number }) | undefined;
+      const isTransientFetch = error instanceof TypeError || typeof error?.status === "number";
+      if (isTransientFetch) {
+        console.warn("map tile request failed", error);
+        return;
+      }
+      console.error("map error", error ?? event);
+    });
+
     map.on("moveend", () => {
       if (moveTimer) {
         clearTimeout(moveTimer);
