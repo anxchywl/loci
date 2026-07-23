@@ -526,6 +526,8 @@ export function DesktopSidebar({
 }: DesktopSidebarProps) {
   const t = useDict();
   const openStory = useUiStore((s) => s.openStory);
+  const storySource = useUiStore((s) => s.storySource);
+  const closeStory = useUiStore((s) => s.closeStory);
   const requestPanTo = useUiStore((s) => s.requestPanTo);
   const [openDoc, setOpenDoc] = useState<LegalDocId | null>(null);
   const docTitles = docTitlesFrom(t);
@@ -552,15 +554,24 @@ export function DesktopSidebar({
     onSetActivePanel(panel);
   };
 
-  const handleStoryOpen = (id: string, lat: number, lon: number) => {
-    openStory(id, { lat, lon });
+  const handleStoryOpen = (id: string, lat: number, lon: number, source?: Panel) => {
+    const storySource = source === "trending" || source === "nearby" || source === "saved" || source === "my-stories" ? source : null;
+    openStory(id, { lat, lon }, storySource);
     requestPanTo(lat, lon);
     onSetActivePanel("story");
   };
 
   const handleToggle = () => {
     if (openDoc) { setOpenDoc(null); return; }
-    if (activePanel) { onSetActivePanel(null); return; }
+    if (activePanel) {
+      if (activePanel === "story") {
+        closeStory();
+        onSetActivePanel(storySource);
+      } else {
+        onSetActivePanel(null);
+      }
+      return;
+    }
     if (open) onClose(); else onOpen();
   };
 
@@ -676,21 +687,21 @@ export function DesktopSidebar({
                 <StoryPanel storyId={storyId} authenticated={authenticated} onClose={() => onSetActivePanel(null)} />
               )}
               {activePanel === "trending" && (
-                <TrendingPanel authenticated={authenticated} onOpen={handleStoryOpen} />
+                <TrendingPanel authenticated={authenticated} onOpen={(id, lat, lon) => handleStoryOpen(id, lat, lon, "trending")} />
               )}
               {activePanel === "nearby" && (
-                <NearbyPanel location={nearbyLocation} onOpen={handleStoryOpen} />
+                <NearbyPanel location={nearbyLocation} onOpen={(id, lat, lon) => handleStoryOpen(id, lat, lon, "nearby")} />
               )}
               {activePanel === "saved" && (
                 <SavedPanel
                   authenticated={authenticated}
-                  onOpen={(story) => handleStoryOpen(story.id, story.lat, story.lon)}
+                  onOpen={(story) => handleStoryOpen(story.id, story.lat, story.lon, "saved")}
                 />
               )}
               {activePanel === "my-stories" && (
                 <MyStoriesPanel
                   authenticated={authenticated}
-                  onOpen={(story) => handleStoryOpen(story.id, story.lat, story.lon)}
+                  onOpen={(story) => handleStoryOpen(story.id, story.lat, story.lon, "my-stories")}
                 />
               )}
               {activePanel === "profile" && <ProfilePanel />}

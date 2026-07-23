@@ -110,6 +110,7 @@ export function HomeManager() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<Panel>(null);
   const [mobileDoc, setMobileDoc] = useState<LegalDocId | null>(null);
+  const mobileCloseTimer = useRef<number | null>(null);
   const mapViewOpen = useUiStore((state) => state.mapViewOpen);
   const setMapViewOpen = useUiStore((state) => state.setMapViewOpen);
   const [nearbyLocation, setNearbyLocation] = useState<{ lat: number; lon: number } | null>(null);
@@ -212,6 +213,10 @@ export function HomeManager() {
   };
 
   const handleNearby = async () => {
+    if (nearbyLocation) {
+      requestPanTo(nearbyLocation.lat, nearbyLocation.lon, 14);
+      return;
+    }
     const outcome = await locate();
     if (outcome.kind === "located") {
       setNearbyLocation({ lat: outcome.lat, lon: outcome.lon });
@@ -241,9 +246,11 @@ export function HomeManager() {
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
-    window.setTimeout(() => {
+    if (mobileCloseTimer.current !== null) window.clearTimeout(mobileCloseTimer.current);
+    mobileCloseTimer.current = window.setTimeout(() => {
       setMobilePanel(null);
       setMobileDoc(null);
+      mobileCloseTimer.current = null;
     }, 250);
   };
 
@@ -625,6 +632,10 @@ export function HomeManager() {
 
       <div className="lg:hidden">
         <StorySheet authenticated={authenticated} onBackToSource={() => {
+          if (mobileCloseTimer.current !== null) {
+            window.clearTimeout(mobileCloseTimer.current);
+            mobileCloseTimer.current = null;
+          }
           closeStory();
           if (storySource) {
             setMobilePanel(storySource);
