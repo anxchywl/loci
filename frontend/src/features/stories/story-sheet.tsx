@@ -21,6 +21,7 @@ import { useUiStore } from "@/stores/ui-store";
 
 interface StorySheetProps {
   authenticated: boolean;
+  onBackToSource: () => void;
 }
 
 // happened_on arrives as an ISO date (YYYY-MM-DD); render it as DD.MM.YYYY
@@ -30,7 +31,7 @@ function formatHappenedOn(value: string): string {
   return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
-export function StorySheet({ authenticated }: StorySheetProps) {
+export function StorySheet({ authenticated, onBackToSource }: StorySheetProps) {
   const t = useDict();
   const storyId = useUiStore((state) => state.openStoryId);
   const closeStory = useUiStore((state) => state.closeStory);
@@ -45,12 +46,12 @@ export function StorySheet({ authenticated }: StorySheetProps) {
   const bookmark = useBookmark(storyId ?? "");
   const report = useReportStory(storyId ?? "");
   const deleteStory = useDeleteStory();
-  const deletePhoto = useDeleteStoryPhoto(storyId ?? "");
   // inline confirmation shown before a destructive/irreversible action
   const [confirming, setConfirming] = useState<"delete" | "report" | null>(null);
   // full-screen photo viewer; holds the url of the photo being viewed
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [sheetHeight, setSheetHeight] = useState(0);
+  const storySource = useUiStore((state) => state.storySource);
 
   // reset any pending confirmation when the sheet switches to another story
   useEffect(() => {
@@ -84,6 +85,10 @@ export function StorySheet({ authenticated }: StorySheetProps) {
   const goTo = (pin: { id: string; lat: number; lon: number }) => {
     openAdjacentStory(pin.id, { lat: pin.lat, lon: pin.lon });
     requestPanTo(pin.lat, pin.lon, undefined, mobilePadding);
+  };
+  const goBack = () => {
+    if (storySource) onBackToSource();
+    else closeStory();
   };
 
   if (!storyId) return null;
@@ -137,7 +142,8 @@ export function StorySheet({ authenticated }: StorySheetProps) {
   return (
     <BottomSheet
       open
-      onClose={closeStory}
+      onClose={goBack}
+      onBack={storySource ? goBack : undefined}
       title={confirming === "delete" ? undefined : story?.title}
       subtitle={story ? authorLabel(story.author) ?? undefined : undefined}
       titleColor={category?.color}
@@ -154,8 +160,8 @@ export function StorySheet({ authenticated }: StorySheetProps) {
           className="space-y-4 motion-safe:animate-story-state"
         >
           {confirming === "delete" ? (
-            <div className="space-y-4 py-2">
-              <div>
+            <div className="space-y-4 rounded-sheet border border-border bg-surface p-4 py-5">
+              <div className="text-center">
                 <div className="text-[17px] font-semibold">{t.confirmDeleteTitle}</div>
                 <p className="mt-1 text-[13px] leading-relaxed text-muted">{t.confirmDeleteBody}</p>
               </div>
@@ -191,13 +197,6 @@ export function StorySheet({ authenticated }: StorySheetProps) {
                   className="h-52 w-full rounded-sheet object-cover"
                 />
               </button>
-              {story.viewer_is_owner && (
-                <button type="button" aria-label={t.deletePhoto} disabled={deletePhoto.isPending}
-                  onClick={() => { if (window.confirm(t.deletePhoto)) deletePhoto.mutate(story.photos[0].id); }}
-                  className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50">
-                  <Trash2 size={17} />
-                </button>
-              )}
               </div>
             ) : (
               <div className="flex gap-2 overflow-x-auto">
@@ -216,13 +215,6 @@ export function StorySheet({ authenticated }: StorySheetProps) {
                       className="h-44 w-36 rounded-sheet object-cover"
                     />
                   </button>
-                  {story.viewer_is_owner && (
-                    <button type="button" aria-label={t.deletePhoto} disabled={deletePhoto.isPending}
-                      onClick={() => { if (window.confirm(t.deletePhoto)) deletePhoto.mutate(photo.id); }}
-                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50">
-                      <Trash2 size={15} />
-                    </button>
-                  )}
                   </div>
                 ))}
               </div>

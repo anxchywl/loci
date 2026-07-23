@@ -13,6 +13,7 @@ export interface AdjacentPin {
   lat: number;
   lon: number;
 }
+export type StorySource = "trending" | "nearby" | "saved" | "my-stories" | null;
 
 interface UiState {
   locale: Locale;
@@ -20,6 +21,7 @@ interface UiState {
   mode: HomeMode;
   pickedLocation: { lat: number; lon: number } | null;
   openStoryId: string | null;
+  storySource: StorySource;
   // browsing history: stories opened before the current one, in visit order.
   // Drives the "back" control (return to the previously viewed story). Distinct
   // from adjacentPins, which is geographic and has nothing to do with history.
@@ -53,7 +55,7 @@ interface UiState {
   pickLocation: (lat: number, lon: number) => void;
   cancelCompose: () => void;
   finishCompose: () => void;
-  openStory: (id: string, coords?: { lat: number; lon: number }) => void;
+  openStory: (id: string, coords?: { lat: number; lon: number }, source?: StorySource) => void;
   // open a story reached via prev/next: advances the open story and history but
   // keeps the proximity anchor + tour, so ordering stays fixed on the first story
   openAdjacentStory: (id: string, coords: { lat: number; lon: number }) => void;
@@ -88,6 +90,7 @@ export const useUiStore = create<UiState>((set) => ({
   mode: "browse",
   pickedLocation: null,
   openStoryId: null,
+  storySource: null,
   storyHistory: [],
   adjacentPins: [],
   navAnchor: null,
@@ -119,9 +122,10 @@ export const useUiStore = create<UiState>((set) => ({
   cancelCompose: () => set({ mode: "browse", pickedLocation: null }),
   finishCompose: () => set({ mode: "browse", pickedLocation: null }),
   setAdjacentPins: (pins) => set({ adjacentPins: pins }),
-  openStory: (id, coords) =>
+  openStory: (id, coords, source = null) =>
     set((state) => ({
       openStoryId: id,
+      storySource: source,
       trendingOpen: false,
       // push current story onto history stack before switching
       storyHistory: state.openStoryId && state.openStoryId !== id
@@ -143,7 +147,7 @@ export const useUiStore = create<UiState>((set) => ({
       // deliberately keep navAnchor + adjacentPins so the tour stays anchored
     })),
   setNavAnchor: (anchor) => set({ navAnchor: anchor }),
-  closeStory: () => set({ openStoryId: null, storyHistory: [], navAnchor: null, adjacentPins: [] }),
+  closeStory: () => set({ openStoryId: null, storySource: null, storyHistory: [], navAnchor: null, adjacentPins: [] }),
   goBackStory: () =>
     set((state) => {
       if (state.storyHistory.length === 0) return {};

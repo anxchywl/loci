@@ -100,6 +100,8 @@ export function HomeManager() {
   const navAnchor = useUiStore((state) => state.navAnchor);
   const setNavAnchor = useUiStore((state) => state.setNavAnchor);
   const requestPanTo = useUiStore((state) => state.requestPanTo);
+  const storySource = useUiStore((state) => state.storySource);
+  const closeStory = useUiStore((state) => state.closeStory);
 
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -521,7 +523,7 @@ export function HomeManager() {
         )}
         {trendingStories?.map((story) => (
           <StoryListItem key={story.id} story={story} categories={categories}
-            onOpen={(id) => { openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
+            onOpen={(id) => { openStory(id, { lat: story.lat, lon: story.lon }, "trending"); requestPanTo(story.lat, story.lon); }} />
         ))}
       </BottomSheet>
 
@@ -577,7 +579,7 @@ export function HomeManager() {
                   )}
                   {trendingStories?.map((story) => (
                     <StoryListItem key={story.id} story={story} categories={categories}
-                      onOpen={(id) => { closeMobileMenu(); openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
+                      onOpen={(id) => { closeMobileMenu(); openStory(id, { lat: story.lat, lon: story.lon }, "trending"); requestPanTo(story.lat, story.lon); }} />
                   ))}
                 </div>
               )}
@@ -586,20 +588,20 @@ export function HomeManager() {
                 <NearbyPanel
                   location={nearbyLocation}
                   className="px-1"
-                  onOpen={(id, lat, lon) => { closeMobileMenu(); openStory(id, { lat, lon }); requestPanTo(lat, lon); }}
+                  onOpen={(id, lat, lon) => { closeMobileMenu(); openStory(id, { lat, lon }, "nearby"); requestPanTo(lat, lon); }}
                 />
               )}
 
               {mobilePanel === "saved" && (
                 <SavedPanel
                   authenticated={authenticated}
-                  onOpen={(story) => { closeMobileMenu(); openStory(story.id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }}
+                  onOpen={(story) => { closeMobileMenu(); openStory(story.id, { lat: story.lat, lon: story.lon }, "saved"); requestPanTo(story.lat, story.lon); }}
                 />
               )}
               {mobilePanel === "my-stories" && (
                 <MyStoriesPanel
                   authenticated={authenticated}
-                  onOpen={(story) => { closeMobileMenu(); openStory(story.id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }}
+                  onOpen={(story) => { closeMobileMenu(); openStory(story.id, { lat: story.lat, lon: story.lon }, "my-stories"); requestPanTo(story.lat, story.lon); }}
                 />
               )}
               {mobilePanel === "about" && (
@@ -622,7 +624,13 @@ export function HomeManager() {
       </div>
 
       <div className="lg:hidden">
-        <StorySheet authenticated={authenticated} />
+        <StorySheet authenticated={authenticated} onBackToSource={() => {
+          closeStory();
+          if (storySource) {
+            setMobilePanel(storySource);
+            setMobileMenuOpen(true);
+          }
+        }} />
       </div>
       <AddStorySheet />
       <Toast />

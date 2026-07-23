@@ -134,7 +134,7 @@ export function ProfileManager() {
           </>
         )}
       </div>
-      <StorySheet authenticated={authenticated} />
+      <StorySheet authenticated={authenticated} onBackToSource={() => useUiStore.getState().closeStory()} />
     </main>
   );
 }
