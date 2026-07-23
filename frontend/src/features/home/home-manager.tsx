@@ -9,7 +9,6 @@ import {
   Flame,
   Info,
   Layers,
-  MapPin,
   Menu,
   Navigation,
   Plus,
@@ -35,10 +34,10 @@ import { MapView, type MapBounds, type MapViewHandle } from "@/features/map/map-
 import { AddStorySheet } from "@/features/stories/add-story-sheet";
 import { BottomSheet } from "@/features/stories/components/bottom-sheet";
 import { CategoryChip } from "@/features/stories/components/category-chip";
+import { NearbyPanel } from "@/features/stories/components/nearby-panel";
 import { StoryListItem } from "@/features/stories/components/story-list-item";
 import { MyStoriesPanel, SavedPanel } from "@/features/profile/story-panels";
 import {
-  useBboxStories,
   useCategories,
   useMapClusters,
   useMapPins,
@@ -139,16 +138,6 @@ export function HomeManager() {
   const { data: clusters = [] } = useMapClusters(
     clusterMode && bounds ? { ...bounds, categoryId: categoryFilter } : null,
   );
-  const nearbyBounds = nearbyLocation
-    ? {
-        minLat: nearbyLocation.lat - 0.018,
-        maxLat: nearbyLocation.lat + 0.018,
-        minLon: nearbyLocation.lon - 0.018,
-        maxLon: nearbyLocation.lon + 0.018,
-        categoryId: null,
-      }
-    : null;
-  const { data: nearbyStories = [] } = useBboxStories(nearbyBounds);
   const { data: trendingStories } = useTrending(trendingOpen || mobilePanel === "trending");
   const { data: searchResults } = useSearch(searchQuery);
 
@@ -594,21 +583,11 @@ export function HomeManager() {
               )}
 
               {mobilePanel === "nearby" && (
-                <div className="px-1 animate-fade-in">
-                  {!nearbyLocation && (
-                    <div className="py-8 text-center text-[13px] text-muted">{t.loading}</div>
-                  )}
-                  {nearbyLocation && nearbyStories.length === 0 && (
-                    <div className="flex min-h-[30dvh] flex-col items-center justify-center gap-2 py-8 text-center">
-                      <MapPin size={22} className="text-muted" />
-                      <span className="text-[13px] text-muted">{t.noNearby}</span>
-                    </div>
-                  )}
-                  {nearbyLocation && nearbyStories.map((story) => (
-                    <StoryListItem key={story.id} story={story} categories={categories}
-                      onOpen={(id) => { closeMobileMenu(); openStory(id, { lat: story.lat, lon: story.lon }); requestPanTo(story.lat, story.lon); }} />
-                  ))}
-                </div>
+                <NearbyPanel
+                  location={nearbyLocation}
+                  className="px-1"
+                  onOpen={(id, lat, lon) => { closeMobileMenu(); openStory(id, { lat, lon }); requestPanTo(lat, lon); }}
+                />
               )}
 
               {mobilePanel === "saved" && (

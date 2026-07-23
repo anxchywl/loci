@@ -26,17 +26,17 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useTelegramAuth } from "@/features/auth/hooks";
 import { authorLabel } from "@/features/stories/api";
 import { ReactionButton } from "@/features/stories/components/reaction-button";
+import { NearbyPanel } from "@/features/stories/components/nearby-panel";
 import { StoryListItem } from "@/features/stories/components/story-list-item";
 import { MyStoriesPanel, SavedPanel } from "@/features/profile/story-panels";
 import {
   useBookmark,
   useCategories,
-  useBboxStories,
   useDeleteStory,
   useDeleteStoryPhoto,
   useReportStory,
@@ -111,35 +111,6 @@ function TrendingPanel({ authenticated, onOpen }: { authenticated: boolean; onOp
     <div className="px-2 py-2">
       {stories?.length === 0 && (
         <div className="py-8 text-center text-[13px] text-muted">{t.noStoriesYet}</div>
-      )}
-      {stories?.map((story) => (
-        <StoryListItem key={story.id} story={story} categories={categories}
-          onOpen={() => onOpen(story.id, story.lat, story.lon)} />
-      ))}
-    </div>
-  );
-}
-
-function NearbyPanel({ location, authenticated, onOpen }: {
-  location: { lat: number; lon: number } | null;
-  authenticated: boolean;
-  onOpen: (id: string, lat: number, lon: number) => void;
-}) {
-  const t = useDict();
-  const { data: categories = [] } = useCategories();
-  const DELTA = 0.018; // ~2 km
-  const bbox = location
-    ? { minLat: location.lat - DELTA, maxLat: location.lat + DELTA, minLon: location.lon - DELTA, maxLon: location.lon + DELTA, categoryId: null }
-    : null;
-  const { data: stories } = useBboxStories(bbox);
-
-  if (!location) return (
-    <div className="px-4 py-8 text-center text-[13px] text-muted">{t.loading}</div>
-  );
-  return (
-    <div className="px-2 py-2">
-      {stories?.length === 0 && (
-        <div className="py-8 text-center text-[13px] text-muted">{t.noNearby}</div>
       )}
       {stories?.map((story) => (
         <StoryListItem key={story.id} story={story} categories={categories}
@@ -744,7 +715,7 @@ export function DesktopSidebar({
                 <TrendingPanel authenticated={authenticated} onOpen={handleStoryOpen} />
               )}
               {activePanel === "nearby" && (
-                <NearbyPanel location={nearbyLocation} authenticated={authenticated} onOpen={handleStoryOpen} />
+                <NearbyPanel location={nearbyLocation} onOpen={handleStoryOpen} />
               )}
               {activePanel === "saved" && (
                 <SavedPanel

@@ -18,6 +18,7 @@ import {
   fetchComments,
   fetchMapClusters,
   fetchMapPins,
+  fetchNearbyStories,
   fetchWorldMapPins,
   fetchStory,
   fetchTrending,
@@ -113,6 +114,28 @@ export function useMapClusters(params: ClusterParams | null) {
 
 export function useTrending(enabled: boolean) {
   return useQuery({ queryKey: queryKeys.stories.trending, queryFn: fetchTrending, enabled, ...cachePolicy.discovery });
+}
+
+/**
+ * Widening rings for the Nearby list, in meters. Scrolling to the end of the
+ * list steps up to the next ring, ending at the API's 50 km ceiling — roughly
+ * "this neighbourhood" through "this whole city and then some".
+ */
+export const NEARBY_RADII = [1_000, 3_000, 10_000, 25_000, 50_000] as const;
+
+export function useNearbyStories(
+  location: { lat: number; lon: number } | null,
+  radiusMeters: number,
+) {
+  const params = location ? { lat: location.lat, lon: location.lon, radiusMeters } : null;
+  return useQuery({
+    queryKey: params ? queryKeys.stories.nearby(params) : ["stories", "nearby", null],
+    queryFn: ({ signal }) => fetchNearbyStories(params!, signal),
+    enabled: params !== null,
+    // keep the narrower ring on screen while the wider one loads
+    placeholderData: (previous) => previous,
+    ...cachePolicy.discovery,
+  });
 }
 
 export function useSearch(query: string) {

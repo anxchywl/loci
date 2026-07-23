@@ -1,4 +1,4 @@
-import type { BboxParams, ClusterParams } from "@/features/stories/api";
+import type { BboxParams, ClusterParams, NearbyParams } from "@/features/stories/api";
 
 export const queryKeys = {
   categories: ["categories"] as const,
@@ -11,6 +11,7 @@ export const queryKeys = {
     worldMap: (categoryId: number | null) => ["stories", "world-map", categoryId] as const,
     clusters: (params: ClusterParams) => ["stories", "map-clusters", params] as const,
     trending: ["stories", "trending"] as const,
+    nearby: (params: NearbyParams) => ["stories", "nearby", params] as const,
     search: (query: string) => ["stories", "search", query] as const,
   },
   profile: {

@@ -165,6 +165,54 @@ export function fetchTrending(): Promise<Story[]> {
   return apiFetch<Story[]>("/stories/trending");
 }
 
+export interface NearbyParams {
+  lat: number;
+  lon: number;
+  radiusMeters: number;
+}
+
+export function fetchNearbyStories(params: NearbyParams, signal?: AbortSignal): Promise<Story[]> {
+  const query = new URLSearchParams({
+    lat: String(params.lat),
+    lon: String(params.lon),
+    radius_meters: String(params.radiusMeters),
+    limit: "100",
+  });
+  return apiFetch<Story[]>(`/stories/nearby?${query}`, { signal });
+}
+
+/** "800 m" / "1.2 km", in the viewer's locale. */
+export function formatDistance(meters: number, locale: string): string {
+  const km = meters / 1000;
+  return km < 1
+    ? new Intl.NumberFormat(locale, { style: "unit", unit: "meter", maximumFractionDigits: 0 })
+        .format(Math.max(10, Math.round(meters / 10) * 10))
+    : new Intl.NumberFormat(locale, {
+        style: "unit",
+        unit: "kilometer",
+        maximumFractionDigits: km < 10 ? 1 : 0,
+      }).format(km);
+}
+
+const EARTH_RADIUS_M = 6_371_000;
+
+/**
+ * Great-circle distance in meters. Public story coordinates are fuzzed for
+ * privacy, so this is deliberately an approximation of an approximation.
+ */
+export function distanceMeters(
+  from: { lat: number; lon: number },
+  to: { lat: number; lon: number },
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLon = toRad(to.lon - from.lon);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
 export function searchStories(q: string, signal?: AbortSignal): Promise<Story[]> {
   return apiFetch<Story[]>(`/stories/search?${new URLSearchParams({ q })}`, { signal });
 }
