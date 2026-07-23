@@ -671,7 +671,10 @@ export function DesktopSidebar({
         {/* ── Sliding content ── */}
         {/* overflow-clip, not hidden: hidden is still programmatically scrollable,
             so focusing an edge button (prev/next) would shift the track sideways */}
-        <div className="flex-1 overflow-clip">
+        {/* min-h-0: without it this flex child grows to fit its content instead
+            of the space left over, so tall panels overflow the viewport and the
+            inner column never gets a scrollbar */}
+        <div className="min-h-0 flex-1 overflow-clip">
           <div
             className="flex h-full transition-transform duration-[230ms] ease-lm will-change-transform"
             style={{ width: "640px", transform: activePanel ? "translateX(-320px)" : "translateX(0)" }}
