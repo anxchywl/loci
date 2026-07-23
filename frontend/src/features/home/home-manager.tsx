@@ -294,6 +294,7 @@ export function HomeManager() {
         categories={categories}
         stories={clusterMode ? [] : pins}
         clusters={clusterMode ? clusters : []}
+        desktopLeftInset={sidebarOpen ? 320 : 48}
         onBoundsChange={setBounds}
       />
 

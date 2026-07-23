@@ -37,10 +37,11 @@ interface MapViewProps {
   stories: StoryPin[];
   clusters: MapCluster[];
   onBoundsChange: (bounds: MapBounds) => void;
+  desktopLeftInset?: number;
 }
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { categories, stories, clusters, onBoundsChange },
+  { categories, stories, clusters, onBoundsChange, desktopLeftInset = 0 },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -356,7 +357,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
                   : document.querySelector<HTMLElement>("[data-map-controls]")?.getBoundingClientRect().bottom ?? 0,
                 right: 0,
                 bottom: panRequest.paddingBottom ?? 0,
-                left: 0,
+                left: window.matchMedia("(min-width: 1024px)").matches ? desktopLeftInset : 0,
               },
             }
           : {}),
@@ -367,12 +368,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         essential: true,
       });
     }
-  }, [openStoryId, panRequest]);
+  }, [desktopLeftInset, openStoryId, panRequest]);
 
   useEffect(() => {
     if (!mapRef.current || openStoryId) return;
-    mapRef.current.easeTo({ padding: { top: 0, right: 0, bottom: 0, left: 0 }, duration: 250, essential: true });
-  }, [openStoryId]);
+    mapRef.current.easeTo({
+      padding: { top: 0, right: 0, bottom: 0, left: desktopLeftInset },
+      duration: 250,
+      essential: true,
+    });
+  }, [desktopLeftInset, openStoryId]);
 
   const isDark =
     theme === "dark" ||

@@ -111,7 +111,7 @@ export function StoryListItem({
   return (
     <button
       onClick={() => onOpen(story.id)}
-      className="flex w-full items-start gap-3 border-b border-border py-3 text-left transition-colors duration-150 ease-lm last:border-b-0 active:bg-surface"
+      className="relative flex w-full items-start gap-3 border-b border-border py-3 text-left transition-colors duration-150 ease-lm last:border-b-0 active:bg-surface"
     >
       {category && Icon && (
         <span
@@ -122,12 +122,14 @@ export function StoryListItem({
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold">{story.title}</span>
+        {distanceMeters !== undefined && (
+          <span className="absolute right-0 top-3 shrink-0 whitespace-nowrap text-[13px] font-medium text-muted">
+            {formatDistance(distanceMeters, locale)}
+          </span>
+        )}
+        <span className={distanceMeters !== undefined ? "block truncate pr-14 text-[15px] font-semibold" : "block truncate text-[15px] font-semibold"}>{story.title}</span>
         <span className="block truncate text-[13px] text-muted">{story.body}</span>
         <span className="mt-1 flex items-center gap-3 text-[13px] text-muted">
-          {distanceMeters !== undefined && (
-            <span className="shrink-0 font-medium">{formatDistance(distanceMeters, locale)}</span>
-          )}
           <span className="flex items-center gap-1">
             <Heart size={13} /> {story.reaction_count}
           </span>
